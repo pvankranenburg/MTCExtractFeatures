@@ -116,21 +116,29 @@ mtcanntextfeatspath = Path(args.mtcanntextfeatspath)
 class NoMeterError(Exception):
     def __init__(self, arg):
         self.args = arg
-
+    def __str__(self):
+        return repr(self.value)
+    
 #parsing failed
 class ParseError(Exception):
     def __init__(self, arg):
         self.args = arg
+    def __str__(self):
+        return repr(self.value)
 
 #nlbid not in cache
 class CacheError(Exception):
     def __init__(self, arg):
         self.args = arg
+    def __str__(self):
+        return repr(self.value)
 
 #feature vector not of same length
 class FeatLenghtError(Exception):
     def __init__(self, arg):
         self.args = arg
+    def __str__(self):
+        return repr(self.value)
 
 # add left padding to partial measure after repeat bar
 def padSplittedBars(s):
@@ -425,9 +433,13 @@ def getIMAcontour(ima):
 
 #returns:
 #- lyrics
+#- noncontentword
+#- wordend
 #- phoneme
 #- rhymes
+#- rhymescontentwords
 #- wordstress
+#- melismastate
 class GetTextFeatures():
     def __init__(self):
         self.seqs = {}
@@ -444,9 +456,13 @@ class GetTextFeatures():
             raise CacheError(nlbid)
         return (
             self.seqs[filename][nlbid]['features']['lyrics'],
+            self.seqs[filename][nlbid]['features']['noncontentword'],
+            self.seqs[filename][nlbid]['features']['wordend'],
             self.seqs[filename][nlbid]['features']['phoneme'],
             self.seqs[filename][nlbid]['features']['rhymes'],
-            self.seqs[filename][nlbid]['features']['wordstress']
+            self.seqs[filename][nlbid]['features']['rhymescontentwords'],
+            self.seqs[filename][nlbid]['features']['wordstress'],
+            self.seqs[filename][nlbid]['features']['melismastate']
         )
 getTextFeatures = GetTextFeatures()
 
@@ -566,11 +582,17 @@ def getSequences(
                                       'timesignature': timesignature }}
         if textFeatureFile:
             try:
-                lyrics, phoneme, rhymes, wordstress = getTextFeatures(nlbid, textFeatureFile)
+               
+                lyrics, noncontentword, wordend, phoneme, rhymes, rhymescontentwords, wordstress, melismastate = \
+                    getTextFeatures(nlbid, textFeatureFile)
                 seq['features']['lyrics'] = lyrics
+                seq['features']['noncontentword'] = noncontentword
+                seq['features']['wordend'] = wordend
                 seq['features']['phoneme'] = phoneme
                 seq['features']['rhymes'] = rhymes
+                seq['features']['rhymescontentwords'] = rhymescontentwords
                 seq['features']['wordstress'] = wordstress
+                seq['features']['melismastate'] = melismastate
             except CacheError:
                 print(nlbid, 'has no lyrics.')
         
@@ -580,7 +602,8 @@ def getSequences(
         reflength = len(seq['features']['scaledegree'])
         for feat in seq['features'].keys():
             if len(seq['features'][feat]) != reflength:
-                raise FeatLenghtError(f'Error: {nlbid}: length of {feat} differs.')
+                print(f'Error: {nlbid}: length of {feat} differs.')
+                raise FeatLenghtError(nlbid)
         yield seq
 
 def getANNBackgroundCorpusIndices(fsinst_song_metadata):
