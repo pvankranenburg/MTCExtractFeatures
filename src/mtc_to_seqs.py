@@ -405,6 +405,9 @@ def getPhraseIx(phrasepos):
         phr_ix.append(current)
     return [0]+phr_ix
 
+def getPhraseEnd(phrasepos):
+    return [x[1]<x[0] for x in zip(phrasepos, phrasepos[1:])] + [True]
+
 def getPitch40(nlbid, path):
     return getFromJson(nlbid, path, 'pitch40', int)
 
@@ -519,6 +522,7 @@ def getSequences(
         duration = getDuration(nlbid, jsondir)
         onsettick = getOnsetTick(nlbid, jsondir)
         phrasepos = getPhrasePos(nlbid, jsondir)
+        phrase_end = getPhraseEnd(phrasepos)
         phrase_ix = getPhraseIx(phrasepos)
         songpos = getSongPos(duration)
         try:
@@ -581,6 +585,7 @@ def getSequences(
                                       'beatfraction': beatfraction,
                                       'phrasepos': phrasepos,
                                       'phrase_ix': phrase_ix,
+                                      'phrase_end': phrase_end,
                                       'songpos': songpos,
                                       'beatinsong': beatinsong,
                                       'beatinphrase': beatinphrase,
