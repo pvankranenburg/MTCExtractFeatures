@@ -525,10 +525,6 @@ def getSequences(
         phrase_end = getPhraseEnd(phrasepos)
         phrase_ix = getPhraseIx(phrasepos)
         songpos = getSongPos(duration)
-        try:
-            beatinsong, beatinphrase, beatfraction = m21TOBeatInSongANDPhrase(s, phrasepos)
-        except NoMeterError:
-            beatinsong, beatinphrase, beatfraction = [None]*len(sd), [None]*len(sd), [None]*len(sd)
         ior = getIOR(nlbid, jsondir)
         if song_metadata.loc[nlbid,'source_id']:
             sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
@@ -543,26 +539,21 @@ def getSequences(
             ann_bgcorpus = None
         try:
             timesignature = m21TOTimeSignature(s)
-        except NoMeterError:
-            timesignature = [None]*len(sd)
-        try:
             beat_str, beat_fraction_str = m21TOBeat_str(s)
-        except NoMeterError:
-            beat_str, beat_fraction_str = [None]*len(sd) , [None]*len(sd)
-        try:
             beat_float = m21TOBeat_float(s)
-        except NoMeterError:
-            beat_float = [None]*len(sd)
-        try:
             mc = m21TOmetriccontour(s)
+            beatstrength = m21TObeatstrength(s)
+            beatinsong, beatinphrase, beatfraction = m21TOBeatInSongANDPhrase(s, phrasepos)
+            beatinphrase_end = getBeatinphrase_end(beatinphrase, phrase_ix, beat_float)
         except NoMeterError:
             print(nlbid, "has no time signature")
+            timesignature = [None]*len(sd)
+            beat_str, beat_fraction_str = [None]*len(sd) , [None]*len(sd)
+            beat_float = [None]*len(sd)
             mc = [None]*len(sd)
-        try:
-            beatstrength = m21TObeatstrength(s)
-        except NoMeterError:
             beatstrength = [None]*len(sd)
-        beatinphrase_end = getBeatinphrase_end(beatinphrase, phrase_ix, beat_float)
+            beatinsong, beatinphrase, beatfraction = [None]*len(sd), [None]*len(sd), [None]*len(sd)
+            beatinphrase_end = [None]*len(sd)        
         seq = {'id':nlbid, 'tunefamily': str(song_metadata.loc[nlbid, fieldmap['tunefamily']]),
                         'year' : sorting_year,
                         'tunefamily_full': str(song_metadata.loc[nlbid, fieldmap['tunefamily_full']]),
