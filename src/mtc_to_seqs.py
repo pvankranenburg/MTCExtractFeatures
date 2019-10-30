@@ -234,11 +234,11 @@ def m21TOdiatonicPitches(s):
 
 # s : flat music21 stream without ties and without grace notes
 def toDiatonicIntervals(s):
-    return [0] + [n[1].pitch.diatonicNoteNum - n[0].pitch.diatonicNoteNum for n in zip(s.notes, s.notes[1:]) ]
+    return [None] + [n[1].pitch.diatonicNoteNum - n[0].pitch.diatonicNoteNum for n in zip(s.notes, s.notes[1:]) ]
 
 # s : flat music21 stream without ties and without grace notes
 def toChromaticIntervals(s):
-    return [0] + [n[1].pitch.midi - n[0].pitch.midi for n in zip(s.notes, s.notes[1:]) ]
+    return [None] + [n[1].pitch.midi - n[0].pitch.midi for n in zip(s.notes, s.notes[1:]) ]
 
 # s : flat music21 stream without ties and without grace notes
 def m21TOPitches(s):
@@ -257,7 +257,7 @@ def m21TONextIsRest(s):
     notesandrests = list(s.notesAndRests)
     nextisrest = [ nextnote.isRest for note, nextnote in zip(notesandrests, notesandrests[1:]) if note.isNote]
     if notesandrests[-1].isNote:
-        nextisrest.append(True) #final note
+        nextisrest.append(None) #final note
     return nextisrest
 
 # s : flat music21 stream without ties and without grace notes
@@ -424,10 +424,10 @@ def getContour5(midipitch1, midipitch2, thresh):
     elif diff <= -thresh : return '--'
     elif diff < 0 : return '-'
 
-def midipitch2contour3(mp, undef='='):
+def midipitch2contour3(mp, undef=None):
     return [undef] + [getContour3(p[0], p[1]) for p in zip(mp,mp[1:])]
 
-def midipitch2contour5(mp, thresh=3, undef='='):
+def midipitch2contour5(mp, thresh=3, undef=None):
     return [undef] + [getContour5(p[0], p[1], thresh) for p in zip(mp,mp[1:])]
 
 def getIOR(nlbid, path):
@@ -441,7 +441,7 @@ def getOnsetTick(nlbid, path):
 
 def getIMAcontour(ima):
     imacontour = [value2contour(ima[0], ima[1]) for ima in zip(ima,ima[1:])]
-    imacontour.insert(0,'+')
+    imacontour.insert(0,None)
     return imacontour
 
 #returns:
