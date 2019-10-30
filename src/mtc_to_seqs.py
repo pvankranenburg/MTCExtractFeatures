@@ -528,7 +528,7 @@ def getSequences(
         try:
             beatinsong, beatinphrase, beatfraction = m21TOBeatInSongANDPhrase(s, phrasepos)
         except NoMeterError:
-            beatinsong, beatinphrase, beatfraction = ['0']*len(sd), ['0']*len(sd), ['0']*len(sd)
+            beatinsong, beatinphrase, beatfraction = [None]*len(sd), [None]*len(sd), [None]*len(sd)
         ior = getIOR(nlbid, jsondir)
         if song_metadata.loc[nlbid,'source_id']:
             sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
@@ -544,24 +544,24 @@ def getSequences(
         try:
             timesignature = m21TOTimeSignature(s)
         except NoMeterError:
-            timesignature = ['0/0']*len(sd)
+            timesignature = [None]*len(sd)
         try:
             beat_str, beat_fraction_str = m21TOBeat_str(s)
         except NoMeterError:
-            beat_str, beat_fraction_str = ["1"]*len(sd) , ["0"]*len(sd)
+            beat_str, beat_fraction_str = [None]*len(sd) , [None]*len(sd)
         try:
             beat_float = m21TOBeat_float(s)
         except NoMeterError:
-            beat_float = [0.0]*len(sd)
+            beat_float = [None]*len(sd)
         try:
             mc = m21TOmetriccontour(s)
         except NoMeterError:
             print(nlbid, "has no time signature")
-            mc = ['=']*len(sd)
+            mc = [None]*len(sd)
         try:
             beatstrength = m21TObeatstrength(s)
         except NoMeterError:
-            beatstrength = [1.0]*len(sd)
+            beatstrength = [None]*len(sd)
         beatinphrase_end = getBeatinphrase_end(beatinphrase, phrase_ix, beat_float)
         seq = {'id':nlbid, 'tunefamily': str(song_metadata.loc[nlbid, fieldmap['tunefamily']]),
                         'year' : sorting_year,
