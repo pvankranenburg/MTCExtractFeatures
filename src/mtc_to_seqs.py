@@ -433,6 +433,9 @@ def getIOR(nlbid, path):
 def getDuration(nlbid, path):
     return getFromJson(nlbid, path, 'duration', float)
 
+def getOnsetTick(nlbid, path):
+    return getFromJson(nlbid, path, 'onset', int)
+
 def getIMAcontour(ima):
     imacontour = [value2contour(ima[0], ima[1]) for ima in zip(ima,ima[1:])]
     imacontour.insert(0,'+')
@@ -514,6 +517,7 @@ def getSequences(
         contour3 = midipitch2contour3(midipitch)
         contour5 = midipitch2contour5(midipitch, thresh=3)
         duration = getDuration(nlbid, jsondir)
+        onsettick = getOnsetTick(nlbid, jsondir)
         phrasepos = getPhrasePos(nlbid, jsondir)
         phrase_ix = getPhraseIx(phrasepos)
         songpos = getSongPos(duration)
@@ -573,6 +577,7 @@ def getSequences(
                                       'chromaticinterval': chromaticinterval,
                                       'nextisrest': nextisrest,
                                       'duration': duration,
+                                      'onsettick': onsettick,
                                       'beatfraction': beatfraction,
                                       'phrasepos': phrasepos,
                                       'phrase_ix': phrase_ix,
