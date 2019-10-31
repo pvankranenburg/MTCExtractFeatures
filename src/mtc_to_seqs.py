@@ -207,7 +207,7 @@ def m21TOmetriccontour(s):
     if not hasmeter(s):
         raise NoMeterError("No Meter")
     metriccontour = [notes2metriccontour(x[0], x[1]) for x in zip(s.notes,s.notes[1:])]
-    metriccontour.insert(0,'+')
+    metriccontour.insert(0,None)
     return metriccontour
 
 # s : flat music21 stream without ties and without grace notes
@@ -431,7 +431,9 @@ def midipitch2contour5(mp, thresh=3, undef=None):
     return [undef] + [getContour5(p[0], p[1], thresh) for p in zip(mp,mp[1:])]
 
 def getIOR(nlbid, path):
-    return getFromJson( nlbid, path, 'ior', float)
+    ior = getFromJson( nlbid, path, 'ior', float)
+    ior[0] = None
+    return ior
 
 def getDuration(nlbid, path):
     return getFromJson(nlbid, path, 'duration', float)
@@ -605,7 +607,8 @@ def getSequences(
                 seq['features']['wordstress'] = wordstress
                 seq['features']['melismastate'] = melismastate
             except CacheError:
-                print(nlbid, 'has no lyrics.')
+                pass
+                #print(nlbid, 'has no lyrics.')
         
         if ann_bgcorpus is not None:
             seq['ann_bgcorpus'] = ann_bgcorpus
