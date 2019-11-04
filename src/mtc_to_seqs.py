@@ -240,6 +240,66 @@ def toDiatonicIntervals(s):
 def toChromaticIntervals(s):
     return [None] + [n[1].pitch.midi - n[0].pitch.midi for n in zip(s.notes, s.notes[1:]) ]
 
+# compute expectancy of the note modelled with pitch proximity (Schellenberg, 1997)
+def getPitchProximity(chromaticinterval):
+    return [None, None] + [abs(c) if abs(c) < 12 else None for c in chromaticinterval[2:] ]
+
+# compute expectancy of the realized note modelled with pitch reversal (Schellenberg, 1997)
+def getOnePitchReversal(implicative, realized):
+    if abs(implicative) == 6 or abs(implicative) > 11 or abs(realized) > 12:
+        return None
+    
+    pitchrev_dir = None
+    if abs(implicative) < 6:
+        pitchrev_dir = 0
+    if abs(implicative) > 6 and abs(implicative) < 12:
+        if realized * implicative <= 0:
+            pitchrev_dir = 1
+        else:
+            pitchrev_dir = -1
+    
+    pitchrev_ret = 1.5 if ( (abs(realized)>0) and (realized*implicative < 0) and (abs(implicative+realized) <= 2) ) else 0
+
+    return pitchrev_dir + pitchrev_ret
+
+# compute expectancies of the note modelled with pitch reversal (Schellenberg, 1997)
+def getPitchReversal(chromaticinterval):
+    return [None, None] + [getOnePitchReversal(i, r) for i,r in zip(chromaticinterval[1:], chromaticinterval[2:])] 
+
+#compute boundary strength for the potential boundary FOLLOWING the note. Take durations from input
+#duration of the rest following the note (normalized; whole note is 1.0) and maximized (1.0).
+def getFranklandGPR2a(restduration):
+    return [ min(1.0, float(Fraction(r) / 4.0)) for r in restduration]
+
+def getOneFranklandGPR2b(n1,n2,n3,n4):
+    return ( 1.0 - (float(n1+n2)/2.0*n2) ) if (n2>n3) and (n2>n1) else None
+
+def getFranklandGPR2b(lengths):
+    quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
+    return [None, None] + [getOneFranklandGPR2b(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+
+def getOneFranklandGPR3a(n1, n2, n3, n4):
+    if n2 != n3 and abs(n2-n3) > abs(n1-n2) and abs(n2-n3) > abs(n3-n4):
+        return 1.0 - ( float(abs(n1-n2)+abs(n3-n4)) / float(2.0 * abs(n2-n3)) )
+    else:
+        return None
+
+def getFranklandGPR3a(midipitch):
+    quads = zip(midipitch,midipitch[1:],midipitch[2:],midipitch[3:])
+    return [None, None] + [getOneFranklandGPR3a(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+
+def getOneFranklandGPR3d(n1,n2,n3, n4):
+    if n1 != n2 or n3 != n4:
+        return None
+    if n3 > n1:
+        return 1.0 - (float(n1)/float(n3))
+    else:
+        return 1.0 - (float(n3)/float(n1))
+
+def getFranklandGPR3d(lengths):
+    quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
+    return [None, None] + [getOneFranklandGPR3d(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+
 # s : flat music21 stream without ties and without grace notes
 def m21TOPitches(s):
     return [n.pitch.nameWithOctave for n in s.notes]
@@ -263,6 +323,22 @@ def m21TONextIsRest(s):
     if notesandrests[-1].isNote:
         nextisrest.append(None) #final note
     return nextisrest
+
+#Duration of the rest FOLLOWING the note
+def m21TORestDuration(s):
+    restdurations = []
+    notesandrests = list(s.notesAndRests)
+    rest_duration = Fraction(0)
+    #this computes length of rests PRECEEDING the note
+    for event in notesandrests:
+        if event.isRest:
+            rest_duration += Fraction(event.duration.quarterLength)
+        if event.isNote:
+            restdurations.append(str(rest_duration))
+            rest_duration = Fraction(0)
+    #shift list and add last
+    restdurations = restdurations[1:] + [str(rest_duration)]
+    return restdurations
 
 # s : flat music21 stream without ties and without grace notes
 def m21TOTimeSignature(s):
@@ -439,6 +515,10 @@ def getIOR(nlbid, path):
     ior[0] = None
     return ior
 
+#IOI in quarterLength
+def getIOI(duration, restduration):
+    return [d + float(Fraction(r)) for d,r, in zip(duration, restduration)]
+
 def getDuration(nlbid, path):
     return getFromJson(nlbid, path, 'duration', float)
 
@@ -521,7 +601,10 @@ def getSequences(
         pitch = m21TOPitches(s)
         pitch40 = getPitch40(nlbid, jsondir)
         midipitch = m21TOMidiPitch(s)
+        pitchproximity = getPitchProximity(midipitch)
+        pitchreversal = getPitchReversal(chromaticinterval)
         nextisrest = m21TONextIsRest(s)
+        restduration = m21TORestDuration(s)
         tonic, mode = m21TOKey(s)
         contour3 = midipitch2contour3(midipitch)
         contour5 = midipitch2contour5(midipitch, thresh=3)
@@ -534,6 +617,11 @@ def getSequences(
         phrase_ix = getPhraseIx(phrasepos)
         songpos = getSongPos(duration)
         ior = getIOR(nlbid, jsondir)
+        ioi = getIOI(duration, restduration)
+        gpr2a = getFranklandGPR2a(restduration)
+        gpr2b = getFranklandGPR2b(ioi)
+        gpr3a = getFranklandGPR3a(midipitch)
+        gpr3d = getFranklandGPR3d(ioi)
         if song_metadata.loc[nlbid,'source_id']:
             sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
         else:
@@ -578,7 +666,10 @@ def getSequences(
                                       'diatonicpitch' : diatonicPitches,
                                       'diatonicinterval': diatonicinterval,
                                       'chromaticinterval': chromaticinterval,
+                                      'pitchproximity': pitchproximity,
+                                      'pitchreversal': pitchreversal,
                                       'nextisrest': nextisrest,
+                                      'restduration': restduration,
                                       'duration': duration,
                                       'duration_frac': duration_frac,
                                       'duration_fullname': duration_fullname,
@@ -591,6 +682,7 @@ def getSequences(
                                       'beatinsong': beatinsong,
                                       'beatinphrase': beatinphrase,
                                       'beatinphrase_end': beatinphrase_end,
+                                      'IOI': ioi,
                                       'IOR': ior,
                                       'imacontour': ic,
                                       'pitch': pitch,
@@ -600,7 +692,11 @@ def getSequences(
                                       'beat_str': beat_str,
                                       'beat_fraction_str': beat_fraction_str,
                                       'beat': beat_float,
-                                      'timesignature': timesignature }}
+                                      'timesignature': timesignature,
+                                      'gpr2a': gpr2a,
+                                      'gpr2b': gpr2b,
+                                      'gpr3a': gpr3a,
+                                      'gpr3d': gpr3d }}
         if textFeatureFile:
             try:
                
