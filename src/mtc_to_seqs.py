@@ -249,8 +249,12 @@ def m21TOMidiPitch(s):
     return [n.pitch.midi for n in s.notes]
 
 # s : flat music21 stream without ties and without grace notes
-def m21TODurations(s):
+def m21TODuration_fullname(s):
     return [n.duration.fullName for n in s.notes]
+
+# s : flat music21 stream without ties and without grace notes
+def m21TODuration_frac(s):
+    return [str(Fraction(n.duration.quarterLength)) for n in s.notes]
 
 # s : flat music21 stream without ties and without grace notes
 def m21TONextIsRest(s):
@@ -522,6 +526,8 @@ def getSequences(
         contour3 = midipitch2contour3(midipitch)
         contour5 = midipitch2contour5(midipitch, thresh=3)
         duration = getDuration(nlbid, jsondir)
+        duration_fullname = m21TODuration_fullname(s)
+        duration_frac = m21TODuration_frac(s)
         onsettick = getOnsetTick(nlbid, jsondir)
         phrasepos = getPhrasePos(nlbid, jsondir)
         phrase_end = getPhraseEnd(phrasepos)
@@ -574,6 +580,8 @@ def getSequences(
                                       'chromaticinterval': chromaticinterval,
                                       'nextisrest': nextisrest,
                                       'duration': duration,
+                                      'duration_frac': duration_frac,
+                                      'duration_fullname': duration_fullname,
                                       'onsettick': onsettick,
                                       'beatfraction': beatfraction,
                                       'phrasepos': phrasepos,
