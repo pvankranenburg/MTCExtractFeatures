@@ -8,6 +8,7 @@ import argparse
 from fractions import Fraction
 from collections import defaultdict
 from pathlib import Path
+from itertools import zip_longest
 
 from MTCFeatures.MTCFeatureLoader import MTCFeatureLoader
 
@@ -274,9 +275,10 @@ def getFranklandGPR2a(restduration):
 def getOneFranklandGPR2b(n1,n2,n3,n4):
     return ( 1.0 - (float(n1+n2)/2.0*n2) ) if (n2>n3) and (n2>n1) else None
 
+#compute boundary strength for the potential boundary FOLLOWING the note.
 def getFranklandGPR2b(lengths):
     quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
-    return [None, None] + [getOneFranklandGPR2b(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+    return [None] + [getOneFranklandGPR2b(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
 
 def getOneFranklandGPR3a(n1, n2, n3, n4):
     if n2 != n3 and abs(n2-n3) > abs(n1-n2) and abs(n2-n3) > abs(n3-n4):
@@ -286,7 +288,7 @@ def getOneFranklandGPR3a(n1, n2, n3, n4):
 
 def getFranklandGPR3a(midipitch):
     quads = zip(midipitch,midipitch[1:],midipitch[2:],midipitch[3:])
-    return [None, None] + [getOneFranklandGPR3a(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+    return [None] + [getOneFranklandGPR3a(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
 
 def getOneFranklandGPR3d(n1,n2,n3, n4):
     if n1 != n2 or n3 != n4:
@@ -298,7 +300,7 @@ def getOneFranklandGPR3d(n1,n2,n3, n4):
 
 def getFranklandGPR3d(lengths):
     quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
-    return [None, None] + [getOneFranklandGPR3d(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+    return [None] + [getOneFranklandGPR3d(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
 
 # s : flat music21 stream without ties and without grace notes
 def m21TOPitches(s):
@@ -516,11 +518,12 @@ def getIOR(nlbid, path):
     return ior
 
 #IOI in quarterLength
+#last note: take duration
 def getIOI(duration, restduration):
     return [d + float(Fraction(r)) for d,r, in zip(duration, restduration)]
 
 def getDuration(nlbid, path):
-    return getFromJson(nlbid, path, 'duration', float)
+    return [dur * 4.0 for dur in getFromJson(nlbid, path, 'duration', float)]
 
 def getOnsetTick(nlbid, path):
     return getFromJson(nlbid, path, 'onset', int)
@@ -622,6 +625,7 @@ def getSequences(
         gpr2b = getFranklandGPR2b(ioi)
         gpr3a = getFranklandGPR3a(midipitch)
         gpr3d = getFranklandGPR3d(ioi)
+        gpr_boundarystrength = [sum(filter(None, x)) for x in zip(gpr2a, gpr2b, gpr3a, gpr3d)]
         if song_metadata.loc[nlbid,'source_id']:
             sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
         else:
@@ -696,7 +700,8 @@ def getSequences(
                                       'gpr2a': gpr2a,
                                       'gpr2b': gpr2b,
                                       'gpr3a': gpr3a,
-                                      'gpr3d': gpr3d }}
+                                      'gpr3d': gpr3d,
+                                      'gpr_boundarystrength': gpr_boundarystrength }}
         if textFeatureFile:
             try:
                
@@ -721,6 +726,8 @@ def getSequences(
         for feat in seq['features'].keys():
             if len(seq['features'][feat]) != reflength:
                 print(f'Error: {nlbid}: length of {feat} differs.')
+                print(f'Difference: {len(seq["features"][feat])-reflength}')
+                print(list(zip_longest(seq['features']['pitch'],seq['features'][feat],fillvalue="MISSING")))
                 raise FeatLenghtError(nlbid)
         yield seq
 
