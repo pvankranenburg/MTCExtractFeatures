@@ -347,7 +347,7 @@ def m21TONextIsRest(s):
     return nextisrest
 
 #Duration of the rest(s) FOLLOWING the note
-def m21TORestDuration(s):
+def m21TORestDuration_frac(s):
     restdurations = []
     notesandrests = list(s.notesAndRests)
     rest_duration = Fraction(0)
@@ -539,8 +539,11 @@ def getIOR(nlbid, path):
 
 #IOI in quarterLength
 #last note: take duration
-def getIOI(duration, restduration):
-    return [d + float(Fraction(r)) for d,r, in zip(duration, restduration)]
+def getIOI(ioi_frac):
+    return [float(Fraction(i)) for i in ioi_frac]
+
+def getIOI_frac(duration_frac, restduration_frac):
+    return [str(Fraction(d)+Fraction(r)) for d, r, in zip(duration_frac, restduration_frac)]
 
 def getOnsetTick(nlbid, path):
     return getFromJson(nlbid, path, 'onset', int)
@@ -624,7 +627,7 @@ def getSequences(
         pitchproximity = getPitchProximity(chromaticinterval)
         pitchreversal = getPitchReversal(chromaticinterval)
         nextisrest = m21TONextIsRest(s)
-        restduration = m21TORestDuration(s)
+        restduration_frac = m21TORestDuration_frac(s)
         tonic, mode = m21TOKey(s)
         contour3 = midipitch2contour3(midipitch)
         contour5 = midipitch2contour5(midipitch, thresh=3)
@@ -636,10 +639,11 @@ def getSequences(
         phrase_end = getPhraseEnd(phrasepos)
         phrase_ix = getPhraseIx(phrasepos)
         ior = getIOR(nlbid, jsondir)
-        ioi = getIOI(duration, restduration)
+        ioi_frac = getIOI_frac(duration_frac, restduration_frac)
+        ioi = getIOI(ioi_frac)
         songpos = getSongPos(ioi)
-        gpr2a = getFranklandGPR2a(restduration)
-        gpr2b = getFranklandGPR2b(duration, restduration) #or use IOI and no rest check!!!
+        gpr2a = getFranklandGPR2a(restduration_frac)
+        gpr2b = getFranklandGPR2b(duration, restduration_frac) #or use IOI and no rest check!!!
         gpr3a = getFranklandGPR3a(midipitch)
         gpr3d = getFranklandGPR3d(ioi)
         gpr_boundarystrength = [sum(filter(None, x)) for x in zip(gpr2a, gpr2b, gpr3a, gpr3d)]
@@ -690,7 +694,7 @@ def getSequences(
                                       'pitchproximity': pitchproximity,
                                       'pitchreversal': pitchreversal,
                                       'nextisrest': nextisrest,
-                                      'restduration': restduration,
+                                      'restduration_frac': restduration_frac,
                                       'duration': duration,
                                       'duration_frac': duration_frac,
                                       'duration_fullname': duration_fullname,
@@ -703,7 +707,7 @@ def getSequences(
                                       'beatinsong': beatinsong,
                                       'beatinphrase': beatinphrase,
                                       'beatinphrase_end': beatinphrase_end,
-                                      'IOI': ioi,
+                                      'IOI_frac': ioi_frac,
                                       'IOR': ior,
                                       'imacontour': ic,
                                       'pitch': pitch,
