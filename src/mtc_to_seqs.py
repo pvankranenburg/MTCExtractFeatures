@@ -497,8 +497,7 @@ def getPhrasePos(nlbid, path):
     return getFromJson(nlbid, path, 'phrasepos', float)
 
 def getSongPos(onsettick):
-    npioi = np.array(onsettick)
-    onsets = np.cumsum(onsettick) - npioi
+    onsets = np.array(onsettick)
     return list(onsets / onsets[-1])
 
 def getPhraseIx(phrasepos):
