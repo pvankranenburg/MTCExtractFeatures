@@ -345,10 +345,12 @@ def getOneDegreeChange(x1, x2, const_add=0.0):
 
 #degree of change of the interval BEFORE the note
 #Cambouropoulos 2001
-def getDegreeChangeLBDMpitch(chromaticinterval, threshold=12):
-    thr_int = [max(-threshold,min(threshold,i)) for i in chromaticinterval] # -threshold <= thr_int <= threshold
+def getDegreeChangeLBDMpitch(chromaticinterval, threshold=12, const_add=1):
+    # we need absolute values
+    # and thr_int <= threshold
+    thr_int = [min(threshold,abs(i)) if i is not None else None for i in chromaticinterval] 
     pairs = zip(thr_int[1:],thr_int[2:])
-    rpitch = [None, None] + [getOneDegreeChange(x1, x2, const_add=1) for x1, x2 in pairs]
+    rpitch = [None, None] + [getOneDegreeChange(x1, x2, const_add=const_add) for x1, x2 in pairs]
     return rpitch
 
 #Cambouropoulos 2001
@@ -370,17 +372,21 @@ def getDegreeChangeLBDMrest(restduration_frac, threshold=4.0):
 
 #Boundary strength AFTER the note
 def getBoundaryStrength(rs, intervals):
+    #print(list(zip(rs, intervals)))
     pairs = zip(rs[2:],rs[3:], intervals[1:])
     strength = [ c * (r1 + r2) for r1, r2, c in pairs]
     #normalize
     maxspitch = max(strength)
-    strength = [s / maxspitch for s in strength]
+    if maxspitch > 0:
+        strength = [s / maxspitch for s in strength]
     #Add first and last
     strength = [None] + strength + [None, None]
     return strength
     
 def getBoundaryStrengthPitch(rpitch, chromaticinterval, threshold=12):
-    thr_int = [max(-threshold,min(threshold,i)) for i in chromaticinterval] # -threshold <= thr_int <= threshold
+    # we need absolute values
+    # and thr_int <= threshold
+    thr_int = [min(threshold,abs(i)) if i is not None else None for i in chromaticinterval] 
     return getBoundaryStrength(rpitch, thr_int)
 
 def getBoundaryStrengthIOI(rioi, ioi, threshold=4.0):
