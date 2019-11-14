@@ -711,6 +711,7 @@ def getSequences(
                                       'beatinphrase': beatinphrase,
                                       'beatinphrase_end': beatinphrase_end,
                                       'IOI_frac': ioi_frac,
+                                      'IOI': ioi,
                                       'IOR': ior,
                                       'imacontour': ic,
                                       'pitch': pitch,
