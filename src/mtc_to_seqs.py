@@ -543,10 +543,10 @@ def getIOR(nlbid, path):
 #IOI in quarterLength
 #last note: take duration
 def getIOI(ioi_frac):
-    return [float(Fraction(i)) for i in ioi_frac]
+    return [float(Fraction(i)) if i is not None else None for i in ioi_frac]
 
 def getIOI_frac(duration_frac, restduration_frac):
-    return [str(Fraction(d)+Fraction(r)) for d, r, in zip(duration_frac, restduration_frac)]
+    return [str(Fraction(d)+Fraction(r)) if restduration_frac is not None else None for d, r, in zip(duration_frac, restduration_frac)]
 
 def getOnsetTick(nlbid, path):
     return getFromJson(nlbid, path, 'onset', int)
