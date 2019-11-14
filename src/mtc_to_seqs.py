@@ -642,11 +642,11 @@ def getSequences(
         ioi_frac = getIOI_frac(duration_frac, restduration_frac)
         ioi = getIOI(ioi_frac)
         songpos = getSongPos(ioi)
-        gpr2a = getFranklandGPR2a(restduration_frac)
-        gpr2b = getFranklandGPR2b(duration, restduration_frac) #or use IOI and no rest check!!!
-        gpr3a = getFranklandGPR3a(midipitch)
-        gpr3d = getFranklandGPR3d(ioi)
-        gpr_boundarystrength = [sum(filter(None, x)) for x in zip(gpr2a, gpr2b, gpr3a, gpr3d)]
+        gpr2a_Frankland = getFranklandGPR2a(restduration_frac)
+        gpr2b_Frankland = getFranklandGPR2b(duration, restduration_frac) #or use IOI and no rest check!!!
+        gpr3a_Frankland = getFranklandGPR3a(midipitch)
+        gpr3d_Frankland = getFranklandGPR3d(ioi)
+        gpr_Frankland_sum = [sum(filter(None, x)) for x in zip(gpr2a_Frankland, gpr2b_Frankland, gpr3a_Frankland, gpr3d_Frankland)]
         if song_metadata.loc[nlbid,'source_id']:
             sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
         else:
@@ -718,11 +718,11 @@ def getSequences(
                                       'beat_fraction_str': beat_fraction_str,
                                       'beat': beat_float,
                                       'timesignature': timesignature,
-                                      'gpr2a': gpr2a,
-                                      'gpr2b': gpr2b,
-                                      'gpr3a': gpr3a,
-                                      'gpr3d': gpr3d,
-                                      'gpr_boundarystrength': gpr_boundarystrength }}
+                                      'gpr2a_Frankland': gpr2a_Frankland,
+                                      'gpr2b_Frankland': gpr2b_Frankland,
+                                      'gpr3a_Frankland': gpr3a_Frankland,
+                                      'gpr3d_Frankland': gpr3d_Frankland,
+                                      'gpr_Frankland_sum': gpr_Frankland_sum }}
         if textFeatureFile:
             try:
                
