@@ -276,9 +276,21 @@ def getOneFranklandGPR2b(n1,n2,n3,n4):
     return ( 1.0 - (float(n1+n2)/2.0*n2) ) if (n2>n3) and (n2>n1) else None
 
 #compute boundary strength for the potential boundary FOLLOWING the note.
-def getFranklandGPR2b(lengths):
+#For the rule to apply, n2 must be longer than both n1 and n3. In addition
+#n1 through n4 must be notes (not rests)
+def getFranklandGPR2b(lengths, restdurations):
     quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
-    return [None] + [getOneFranklandGPR2b(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+    res =  [None] + [getOneFranklandGPR2b(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+    
+    #check conditions (Frankland 2004, p.505): no rests in between, n2>n1 and n2>n3 (in getOneFranklandGPR2b())
+    #rest_maks: positions with False result in None in res
+    rest_present = [Fraction(r)>Fraction(0) for r in restdurations]
+    triple_rest_present = zip(rest_present,rest_present[1:],rest_present[2:])
+    rest_mask = [False] + [not (r1 or r2 or r3) for r1, r2, r3 in triple_rest_present] + [False]
+    #now set all values in res to None if False in mask
+    res = [res[ix] if rest_mask[ix] else None for ix in range(len(res))]    
+    return res
+    
 
 def getOneFranklandGPR3a(n1, n2, n3, n4):
     if n2 != n3 and abs(n2-n3) > abs(n1-n2) and abs(n2-n3) > abs(n3-n4):
@@ -286,9 +298,11 @@ def getOneFranklandGPR3a(n1, n2, n3, n4):
     else:
         return None
 
+#The rule applies only if the transition from n2 to n3 is greater than from n1 to n2
+#and from n3 to n4. In addition, the transition from n2 to n3 must be nonzero
 def getFranklandGPR3a(midipitch):
     quads = zip(midipitch,midipitch[1:],midipitch[2:],midipitch[3:])
-    return [None] + [getOneFranklandGPR3a(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+    return  [None] + [getOneFranklandGPR3a(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
 
 def getOneFranklandGPR3d(n1,n2,n3, n4):
     if n1 != n2 or n3 != n4:
@@ -298,9 +312,11 @@ def getOneFranklandGPR3d(n1,n2,n3, n4):
     else:
         return 1.0 - (float(n3)/float(n1))
 
+#... to apply, the length of n1 must equal n2, and the length of n3 must euqal n4
 def getFranklandGPR3d(lengths):
     quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
     return [None] + [getOneFranklandGPR3d(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
+    #condition checking in getOneFranklandGRP3d()
 
 # s : flat music21 stream without ties and without grace notes
 def m21TOPitches(s):
@@ -309,6 +325,10 @@ def m21TOPitches(s):
 # s : flat music21 stream without ties and without grace notes
 def m21TOMidiPitch(s):
     return [n.pitch.midi for n in s.notes]
+
+# s : flat music21 stream without ties and without grace notes
+def m21TODuration(s):
+    return [float(n.duration.quarterLength) for n in s.notes]
 
 # s : flat music21 stream without ties and without grace notes
 def m21TODuration_fullname(s):
@@ -326,7 +346,7 @@ def m21TONextIsRest(s):
         nextisrest.append(None) #final note
     return nextisrest
 
-#Duration of the rest FOLLOWING the note
+#Duration of the rest(s) FOLLOWING the note
 def m21TORestDuration(s):
     restdurations = []
     notesandrests = list(s.notesAndRests)
@@ -473,9 +493,9 @@ def getIMA(nlbid, path):
 def getPhrasePos(nlbid, path):
     return getFromJson(nlbid, path, 'phrasepos', float)
 
-def getSongPos(duration):
-    npdurations = np.array(duration)
-    onsets = np.cumsum(npdurations) - npdurations
+def getSongPos(ioi):
+    npioi = np.array(ioi)
+    onsets = np.cumsum(ioi) - npioi
     return list(onsets / onsets[-1])
 
 def getPhraseIx(phrasepos):
@@ -521,9 +541,6 @@ def getIOR(nlbid, path):
 #last note: take duration
 def getIOI(duration, restduration):
     return [d + float(Fraction(r)) for d,r, in zip(duration, restduration)]
-
-def getDuration(nlbid, path):
-    return [dur * 4.0 for dur in getFromJson(nlbid, path, 'duration', float)]
 
 def getOnsetTick(nlbid, path):
     return getFromJson(nlbid, path, 'onset', int)
@@ -604,25 +621,25 @@ def getSequences(
         pitch = m21TOPitches(s)
         pitch40 = getPitch40(nlbid, jsondir)
         midipitch = m21TOMidiPitch(s)
-        pitchproximity = getPitchProximity(midipitch)
+        pitchproximity = getPitchProximity(chromaticinterval)
         pitchreversal = getPitchReversal(chromaticinterval)
         nextisrest = m21TONextIsRest(s)
         restduration = m21TORestDuration(s)
         tonic, mode = m21TOKey(s)
         contour3 = midipitch2contour3(midipitch)
         contour5 = midipitch2contour5(midipitch, thresh=3)
-        duration = getDuration(nlbid, jsondir)
+        duration = m21TODuration(s)
         duration_fullname = m21TODuration_fullname(s)
         duration_frac = m21TODuration_frac(s)
         onsettick = getOnsetTick(nlbid, jsondir)
         phrasepos = getPhrasePos(nlbid, jsondir)
         phrase_end = getPhraseEnd(phrasepos)
         phrase_ix = getPhraseIx(phrasepos)
-        songpos = getSongPos(duration)
         ior = getIOR(nlbid, jsondir)
         ioi = getIOI(duration, restduration)
+        songpos = getSongPos(ioi)
         gpr2a = getFranklandGPR2a(restduration)
-        gpr2b = getFranklandGPR2b(ioi)
+        gpr2b = getFranklandGPR2b(duration, restduration) #or use IOI and no rest check!!!
         gpr3a = getFranklandGPR3a(midipitch)
         gpr3d = getFranklandGPR3d(ioi)
         gpr_boundarystrength = [sum(filter(None, x)) for x in zip(gpr2a, gpr2b, gpr3a, gpr3d)]
