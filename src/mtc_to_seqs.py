@@ -731,6 +731,13 @@ def getSequences(
         gpr3a_Frankland = getFranklandGPR3a(midipitch)
         gpr3d_Frankland = getFranklandGPR3d(ioi)
         gpr_Frankland_sum = [sum(filter(None, x)) for x in zip(gpr2a_Frankland, gpr2b_Frankland, gpr3a_Frankland, gpr3d_Frankland)]
+        lbdm_rpitch = getDegreeChangeLBDMpitch(chromaticinterval)
+        lbdm_spitch = getBoundaryStrengthPitch(lbdm_rpitch, chromaticinterval)
+        lbdm_rioi = getDegreeChangeLBDMioi(ioi)
+        lbdm_sioi = getBoundaryStrengthIOI(lbdm_rioi, ioi)
+        lbdm_rrest = getDegreeChangeLBDMrest(restduration_frac)
+        lbdm_srest = getBoundaryStrengthRest(lbdm_rrest, restduration_frac)
+        lbdm_boundarystrength = getLocalBoundaryStrength(lbdm_spitch, lbdm_sioi, lbdm_srest)
         if song_metadata.loc[nlbid,'source_id']:
             sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
         else:
@@ -807,7 +814,11 @@ def getSequences(
                                       'gpr2b_Frankland': gpr2b_Frankland,
                                       'gpr3a_Frankland': gpr3a_Frankland,
                                       'gpr3d_Frankland': gpr3d_Frankland,
-                                      'gpr_Frankland_sum': gpr_Frankland_sum }}
+                                      'gpr_Frankland_sum': gpr_Frankland_sum,
+                                      'lbdm_spitch': lbdm_spitch,
+                                      'lbdm_sioi': lbdm_sioi,
+                                      'lbdm_srest': lbdm_srest,
+                                      'lbdm_boundarystrength': lbdm_boundarystrength }}
         if textFeatureFile:
             try:
                
