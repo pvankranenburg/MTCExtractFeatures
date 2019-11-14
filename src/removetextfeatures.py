@@ -237,7 +237,7 @@ nlbids = [
     'NLB179913_01'
 ]
 
-fl = MTCFeatureLoader('mtcfsinst_sequences_merged.jsonl.gz')
+fl = MTCFeatureLoader('MTC-FS-INST-2.0_sequences-0.9.1.jsonl')
 
 def removeFeats(featloader):
     for seq in featloader.sequences():
@@ -255,5 +255,5 @@ def removeFeats(featloader):
                 pass
         yield seq
 
-fl.writeJSON('mtcfsinst_sequences_merged_notext.jsonl.gz', removeFeats(fl))
+fl.writeJSON('MTC-FS-INST-2.0_sequences-0.9.1_notext.jsonl', removeFeats(fl))
 
