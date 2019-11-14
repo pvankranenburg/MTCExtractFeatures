@@ -496,9 +496,9 @@ def getIMA(nlbid, path):
 def getPhrasePos(nlbid, path):
     return getFromJson(nlbid, path, 'phrasepos', float)
 
-def getSongPos(ioi):
-    npioi = np.array(ioi)
-    onsets = np.cumsum(ioi) - npioi
+def getSongPos(onsettick):
+    npioi = np.array(onsettick)
+    onsets = np.cumsum(onsettick) - npioi
     return list(onsets / onsets[-1])
 
 def getPhraseIx(phrasepos):
@@ -543,10 +543,10 @@ def getIOR(nlbid, path):
 #IOI in quarterLength
 #last note: take duration
 def getIOI(ioi_frac):
-    return [float(Fraction(i)) for i in ioi_frac]
+    return [float(Fraction(i)) if i is not None else None for i in ioi_frac]
 
 def getIOI_frac(duration_frac, restduration_frac):
-    return [str(Fraction(d)+Fraction(r)) if r is not None else str(Fraction(d)) for d, r, in zip(duration_frac, restduration_frac)]
+    return [str(Fraction(d)+Fraction(r)) if r is not None else None for d, r, in zip(duration_frac, restduration_frac)]
 
 def getOnsetTick(nlbid, path):
     return getFromJson(nlbid, path, 'onset', int)
@@ -644,7 +644,7 @@ def getSequences(
         ior = getIOR(nlbid, jsondir)
         ioi_frac = getIOI_frac(duration_frac, restduration_frac)
         ioi = getIOI(ioi_frac)
-        songpos = getSongPos(ioi)
+        songpos = getSongPos(onsettick)
         gpr2a_Frankland = getFranklandGPR2a(restduration_frac)
         gpr2b_Frankland = getFranklandGPR2b(duration, restduration_frac) #or use IOI and no rest check!!!
         gpr3a_Frankland = getFranklandGPR3a(midipitch)
