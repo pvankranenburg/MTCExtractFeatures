@@ -359,7 +359,10 @@ def m21TORestDuration_frac(s):
             restdurations.append(str(rest_duration))
             rest_duration = Fraction(0)
     #shift list and add last
-    restdurations = restdurations[1:] + [str(rest_duration)]
+    if notesandrests[-1].isNote:
+        restdurations = restdurations[1:] + [None]
+    else:
+        restdurations = restdurations[1:] + [str(rest_duration)]
     return restdurations
 
 # s : flat music21 stream without ties and without grace notes
