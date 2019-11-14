@@ -270,7 +270,7 @@ def getPitchReversal(chromaticinterval):
 #compute boundary strength for the potential boundary FOLLOWING the note. Take durations from input
 #duration of the rest following the note (normalized; whole note is 1.0) and maximized (1.0).
 def getFranklandGPR2a(restduration):
-    return [ min(1.0, float(Fraction(r) / 4.0)) for r in restduration]
+    return [ min(1.0, float(Fraction(r) / 4.0)) if r is not None else None for r in restduration]
 
 def getOneFranklandGPR2b(n1,n2,n3,n4):
     return ( 1.0 - (float(n1+n2)/2.0*n2) ) if (n2>n3) and (n2>n1) else None
@@ -284,7 +284,7 @@ def getFranklandGPR2b(lengths, restdurations):
     
     #check conditions (Frankland 2004, p.505): no rests in between, n2>n1 and n2>n3 (in getOneFranklandGPR2b())
     #rest_maks: positions with False result in None in res
-    rest_present = [Fraction(r)>Fraction(0) for r in restdurations]
+    rest_present = [Fraction(r)>Fraction(0) if r is not None else False for r in restdurations]
     triple_rest_present = zip(rest_present,rest_present[1:],rest_present[2:])
     rest_mask = [False] + [not (r1 or r2 or r3) for r1, r2, r3 in triple_rest_present] + [False]
     #now set all values in res to None if False in mask
@@ -543,10 +543,10 @@ def getIOR(nlbid, path):
 #IOI in quarterLength
 #last note: take duration
 def getIOI(ioi_frac):
-    return [float(Fraction(i)) if i is not None else None for i in ioi_frac]
+    return [float(Fraction(i)) for i in ioi_frac]
 
 def getIOI_frac(duration_frac, restduration_frac):
-    return [str(Fraction(d)+Fraction(r)) if restduration_frac is not None else None for d, r, in zip(duration_frac, restduration_frac)]
+    return [str(Fraction(d)+Fraction(r)) if r is not None else str(Fraction(d)) for d, r, in zip(duration_frac, restduration_frac)]
 
 def getOnsetTick(nlbid, path):
     return getFromJson(nlbid, path, 'onset', int)
