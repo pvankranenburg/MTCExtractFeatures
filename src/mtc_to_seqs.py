@@ -319,19 +319,19 @@ def getFranklandGPR3d(lengths):
     #condition checking in getOneFranklandGRP3d()
 
 #For LBDM parameters:
-#Take interval BEFORE note
-#r1 is degree of change of interval BEFORE the note
+#Take interval AFTER note
+#r1 is degree of change of interval AFTER the note
 #compute boundary strength of interval FOLLOWING note
 #note:       n0    n1    n2    n3    n4    n5
 #            |  \  |  \  |  \  |  \  |  \
-#interval    None  i1    i2    i3    i4    i5  
-#            |     |  \  |   \ |  \  |  \  | 
-#change      None  None  r2    r3    r4    r5
-#                   / /
+#interval    i0    i1    i2    i3    i4    i5
+#            |  \  |  \  |  \  |  \  |  \  | 
+#change      None  r1    r2    r3    r4    r5
+#                  |  /  |  /  |  /  |  /  |  /
 #strength    None  s1    s2    s3    s4    s5
 #
-#  s1 is computed from r2 and r3
-#  s2 is computed from r3 and r4
+#  s1 is computed from r1 and r2
+#  s2 is computed from r2 and r3
 # etc.
 
 def getOneDegreeChange(x1, x2, const_add=0.0):
@@ -348,32 +348,35 @@ def getOneDegreeChange(x1, x2, const_add=0.0):
 def getDegreeChangeLBDMpitch(chromaticinterval, threshold=12, const_add=1):
     # we need absolute values
     # and thr_int <= threshold
-    thr_int = [min(threshold,abs(i)) if i is not None else None for i in chromaticinterval] 
-    pairs = zip(thr_int[1:],thr_int[2:])
-    rpitch = [None, None] + [getOneDegreeChange(x1, x2, const_add=const_add) for x1, x2 in pairs]
+    # and shift such that chormaticinterval is interval FOLLOWING note
+    thr_int = [min(threshold,abs(i)) for i in chromaticinterval[1:]] + [None] 
+    print(thr_int)
+    print(len(chromaticinterval),len(thr_int))
+    pairs = zip(thr_int[:-1],thr_int[1:-1])
+    rpitch = [None] + [getOneDegreeChange(x1, x2, const_add=const_add) for x1, x2 in pairs] + [None]
     return rpitch
 
 #Cambouropoulos 2001
 #default threshold: whole note (4.0 quarterLength)
 def getDegreeChangeLBDMioi(ioi, threshold=4.0):
-    #We need IOI BEFORE the note, and we need maximize the value
-    thr_ioi = [None] + [min(threshold,i) for i in ioi[:-1]]
-    pairs = zip(thr_ioi[1:],thr_ioi[2:])
-    rioi = [None, None] + [getOneDegreeChange(x1, x2) for x1, x2 in pairs ]
+    #We need IOI AFTER the note, and we need maximize the value
+    thr_ioi = [min(threshold,i) for i in ioi[:-1]] + [None]
+    pairs = zip(thr_ioi[:-1],thr_ioi[1:-1])
+    rioi = [None] + [getOneDegreeChange(x1, x2) for x1, x2 in pairs ] + [None]
     return rioi
     
 #Cambouropoulos 2001
 def getDegreeChangeLBDMrest(restduration_frac, threshold=4.0):
-    #need to shift rest to rest BEFORE note, and apply threshold
-    thr_rd = [None] + [min(threshold, float(Fraction(r))) for r in restduration_frac[:-1]]
-    pairs = zip(thr_rd[1:], thr_rd[2:])
-    rrest = [None, None] + [getOneDegreeChange(x1, x2) for x1, x2 in pairs]
+    #need rest AFTER note, and apply threshold
+    thr_rd = [min(threshold, float(Fraction(r))) for r in restduration_frac[:-1]] + [None]
+    pairs = zip(thr_rd[:-1], thr_rd[1:-1])
+    rrest = [None] + [getOneDegreeChange(x1, x2) for x1, x2 in pairs] + [None]
     return rrest
 
 #Boundary strength AFTER the note
 def getBoundaryStrength(rs, intervals):
     #print(list(zip(rs, intervals)))
-    pairs = zip(rs[2:],rs[3:], intervals[1:])
+    pairs = zip(rs[1:-1], rs[2:-1], intervals[1:])
     strength = [ c * (r1 + r2) for r1, r2, c in pairs]
     #normalize
     maxspitch = max(strength)
@@ -386,20 +389,22 @@ def getBoundaryStrength(rs, intervals):
 def getBoundaryStrengthPitch(rpitch, chromaticinterval, threshold=12):
     # we need absolute values
     # and thr_int <= threshold
-    thr_int = [min(threshold,abs(i)) if i is not None else None for i in chromaticinterval] 
+    # and shift such that chormaticinterval is interval FOLLOWING note
+    thr_int = [min(threshold,abs(i)) for i in chromaticinterval[1:]] + [None] 
     return getBoundaryStrength(rpitch, thr_int)
 
 def getBoundaryStrengthIOI(rioi, ioi, threshold=4.0):
-    #We need IOI BEFORE the note, and we need maximize the value
-    thr_ioi = [None] + [min(threshold,i) for i in ioi[:-1]]
+    #We need IOI AFTER the note, and we need maximize the value
+    thr_ioi = [min(threshold,i) for i in ioi[:-1]] + [None]
     return getBoundaryStrength(rioi, thr_ioi)
 
 def getBoundaryStrengthRest(rrest, restduration_frac, threshold=4.0):
-    #need to shift rest to rest BEFORE note, and apply threshold
-    thr_rd = [None] + [min(threshold, float(Fraction(r))) for r in restduration_frac[:-1]]
+    #need rest AFTER note, and apply threshold
+    thr_rd = [min(threshold, float(Fraction(r))) for r in restduration_frac[:-1]] + [None]
     return getBoundaryStrength(rrest, thr_rd)
 
 #Cambouropoulos 2001
+#Gives strength fot boundary AFTER the note
 def getLocalBoundaryStrength(spitch, sioi, srest):
     triplets = zip(spitch[1:-2], sioi[1:-2], srest[1:-2]) #remove None values at begin and end
     strength = [0.25*p + 0.5*i + 0.25*r for p, i, r in triplets]
@@ -824,6 +829,9 @@ def getSequences(
                                       'lbdm_spitch': lbdm_spitch,
                                       'lbdm_sioi': lbdm_sioi,
                                       'lbdm_srest': lbdm_srest,
+                                      'lbdm_rpitch': lbdm_rpitch,
+                                      'lbdm_rioi': lbdm_rioi,
+                                      'lbdm_rrest': lbdm_rrest,
                                       'lbdm_boundarystrength': lbdm_boundarystrength }}
         if textFeatureFile:
             try:
