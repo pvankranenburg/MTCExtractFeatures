@@ -350,8 +350,6 @@ def getDegreeChangeLBDMpitch(chromaticinterval, threshold=12, const_add=1):
     # and thr_int <= threshold
     # and shift such that chormaticinterval is interval FOLLOWING note
     thr_int = [min(threshold,abs(i)) for i in chromaticinterval[1:]] + [None] 
-    print(thr_int)
-    print(len(chromaticinterval),len(thr_int))
     pairs = zip(thr_int[:-1],thr_int[1:-1])
     rpitch = [None] + [getOneDegreeChange(x1, x2, const_add=const_add) for x1, x2 in pairs] + [None]
     return rpitch
