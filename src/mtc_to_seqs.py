@@ -91,6 +91,12 @@ parser.add_argument(
     help='filename with text features for MTC-FS-INST',
     default='/Users/pvk/git/MTCExtractFeatures/src/mtcfsinst_textfeatures.jsonl'
 )
+parser.add_argument(
+    '-startat',
+    type=str,
+    help='NLBID of the melody to start with. Skips all preceeding ones.',
+    default=''
+)
 
 args = parser.parse_args()
 
@@ -1069,18 +1075,18 @@ def main():
     #    json.dump(lc_seqs, outfile)
 
     if args.gen_mtcann:
-        with open('mtcann_sequences.jsonl', 'w') as outfile:
-            for seq in ann2seqs():
+        with open(f'mtcann_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+            for seq in ann2seqs(startat=args.startat):
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_mtcfsinst:
-        with open('mtcfsinst_sequences.jsonl', 'w') as outfile:
-            for seq in fsinst2seqs():
+        with open(f'mtcfsinst_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+            for seq in fsinst2seqs(startat=args.startat):
                 outfile.write(json.dumps(seq)+'\n')
             
     if args.gen_essen:
-        with open('essen_sequences.jsonl', 'w') as outfile:
-            for seq in essen2seqs():
+        with open(f'essen_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+            for seq in essen2seqs(startat=args.startat):
                 outfile.write(json.dumps(seq)+'\n')
 
 if __name__== "__main__":
