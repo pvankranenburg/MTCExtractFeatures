@@ -382,6 +382,9 @@ def getBoundaryStrength(rs, intervals):
     #print(list(zip(rs, intervals)))
     pairs = zip(rs[1:-1], rs[2:-1], intervals[1:])
     strength = [ c * (r1 + r2) for r1, r2, c in pairs]
+    #very shor melodies:
+    if len(strength) == 0:
+        return [None, None, None]
     #normalize
     maxspitch = max(strength)
     if maxspitch > 0:
