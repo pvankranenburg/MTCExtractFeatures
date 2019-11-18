@@ -80,6 +80,13 @@ parser.add_argument(
     default='/Users/pvk/data/essen/alljson'
 )
 parser.add_argument(
+    '-essenroot',
+    type=str,
+    help='path to essen data. ${essenroot}/allkrn, ${essenroot}/alljson and ${essenroot}/metadata.csv should exist',
+    default='/Users/pvk/data/essen'
+)
+
+parser.add_argument(
     '-mtcanntextfeatspath',
     type=str,
     help='filename with text features for MTC-ANN',
@@ -112,8 +119,10 @@ mtcfsjsondir = Path(args.mtcjsonroot, 'MTC-FS-INST-2.0','json')
 mtcannjsondir = Path(args.mtcjsonroot, 'MTC-ANN-2.0.1','json')
 mtclcjsondir = Path(args.mtcjsonroot, 'MTC-LC-1.0','json')
 
-essenkrndir = Path(args.essenkrnroot)
-essenjsondir = Path(args.essenjsonroot)
+essenroot = Path(args.essenroot)
+essenkrndir = Path(args.essenroot, 'allkrn')
+essenjsondir = Path(args.essenroot, 'alljson')
+essenmetadatapath = Path(args.essenroot, 'metadata.csv')
 
 mtcfsinsttextfeatspath = Path(args.mtcfsinsttextfeatspath)
 mtcanntextfeatspath = Path(args.mtcanntextfeatspath)
@@ -1005,6 +1014,10 @@ def getSequences(
             ann_bgcorpus = bool(song_metadata.loc[nlbid,'ann_bgcorpus'])
         else:
             ann_bgcorpus = None
+        if 'origin' in song_metadata.columns:
+            origin = song_metadata.loc[nlbid,'origin']
+        else:
+            origin = ''
         try:
             timesignature = m21TOTimeSignature(s)
             beat_str, beat_fraction_str = m21TOBeat_str(s)
@@ -1027,6 +1040,7 @@ def getSequences(
                         'tunefamily_full': str(song_metadata.loc[nlbid, fieldmap['tunefamily_full']]),
                         'type' : str(song_metadata.loc[nlbid, 'type']),
                         'freemeter' : not hasmeter(s),
+                        'origin' : origin,
                         'features': { 'scaledegree': sd,
                                       'scaledegreespecifier' : sdspec,
                                       'tonic': tonic,
@@ -1291,8 +1305,14 @@ def fsinst2seqs(startat=None):
         yield(seq)
 
 def essen2seqs(startat=None):
-    essen_ids = [fp.stem for fp in essenkrndir.glob('*.krn')]
-    essen_song_metadata = pd.DataFrame(index=essen_ids)
+
+    essen_song_metadata = pd.read_csv(
+        str(essenmetadatapath),
+        na_filter=False,
+        index_col=0,
+        header=0,
+        encoding='utf8'
+    )
     essen_song_metadata['tunefamily'] = ''
     essen_song_metadata['type'] = 'vocal'
     essen_song_metadata['source_id'] = ''
