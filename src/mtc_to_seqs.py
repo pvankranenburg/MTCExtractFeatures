@@ -442,7 +442,12 @@ def pitch2diatonicPitch(n, t):
 
 # s : flat music21 stream without ties and without grace notes
 def hasmeter(s):
-    if not s.flat.getElementsByClass('TimeSignature'): return False
+    #no time signature at all
+    if not s.getElementsByClass('TimeSignature'): return False
+    #maybe it is an Essen song with Mixed meter.
+    mixedmetercomments = [c.comment for c in s.getElementsByClass('GlobalComment') if c.comment.startswith('Mixed meters:')]
+    if len(mixedmetercomments) > 0:
+        return False
     return True
 
 def notes2metriccontour(n1, n2):
