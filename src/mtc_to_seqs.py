@@ -690,6 +690,9 @@ def m21TODuration_fullname(s):
 def m21TODuration_frac(s):
     return [str(Fraction(n.duration.quarterLength)) for n in s.notes]
 
+def getDurationcontour(duration_frac):
+    return [None] + ['-' if Fraction(d2)<Fraction(d1) else '+' if Fraction(d2)>Fraction(d1) else '=' for d1, d2 in zip(duration_frac,duration_frac[1:])]
+
 # s : flat music21 stream without ties and without grace notes
 def m21TONextIsRest(s):
     notesandrests = list(s.notesAndRests)
@@ -988,6 +991,7 @@ def getSequences(
         duration = m21TODuration(s)
         duration_fullname = m21TODuration_fullname(s)
         duration_frac = m21TODuration_frac(s)
+        durationcontour = getDurationcontour(duration_frac)
         onsettick = getOnsetTick(nlbid, jsondir)
         phrasepos = getPhrasePos(nlbid, jsondir)
         phrase_end = getPhraseEnd(phrasepos)
@@ -1064,6 +1068,7 @@ def getSequences(
                                       'duration': duration,
                                       'duration_frac': duration_frac,
                                       'duration_fullname': duration_fullname,
+                                      'durationcontour': durationcontour,
                                       'onsettick': onsettick,
                                       'beatfraction': beatfraction,
                                       'phrasepos': phrasepos,
