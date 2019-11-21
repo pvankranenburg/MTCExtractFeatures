@@ -531,7 +531,7 @@ def getFranklandGPR2a(restduration):
     return [ min(1.0, float(Fraction(r) / 4.0)) if r is not None else None for r in restduration]
 
 def getOneFranklandGPR2b(n1,n2,n3,n4):
-    return ( 1.0 - (float(n1+n2)/2.0*n2) ) if (n2>n3) and (n2>n1) else None
+    return ( 1.0 - (float(n1+n3)/2.0*n2) ) if (n2>n3) and (n2>n1) else None
 
 #compute boundary strength for the potential boundary FOLLOWING the note.
 #For the rule to apply, n2 must be longer than both n1 and n3. In addition
