@@ -889,10 +889,11 @@ def midipitch2contour3(mp, undef=None):
 def midipitch2contour5(mp, thresh=3, undef=None):
     return [undef] + [getContour5(p[0], p[1], thresh) for p in zip(mp,mp[1:])]
 
-def getIOR(nlbid, path):
-    ior = getFromJson( nlbid, path, 'ior', float)
-    ior[0] = None
-    return ior
+def getIOR_frac(ioi_frac):
+    return [None] + [str(Fraction(ioi2)/Fraction(ioi1)) for ioi1, ioi2 in zip(ioi_frac,ioi_frac[1:])]
+
+def getIOR(ior_frac):
+    return [float(Fraction(i)) if i is not None else None for i in ior_frac]
 
 #IOI in quarterLength
 #last note: take duration
