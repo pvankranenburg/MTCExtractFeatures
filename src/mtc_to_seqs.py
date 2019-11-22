@@ -624,7 +624,7 @@ def getDegreeChangeLBDMioi(ioi, threshold=4.0):
 #Cambouropoulos 2001
 def getDegreeChangeLBDMrest(restduration_frac, threshold=4.0):
     #need rest AFTER note, and apply threshold
-    thr_rd = [min(threshold, float(Fraction(r))) for r in restduration_frac[:-1]] + [None]
+    thr_rd = [min(threshold, float(Fraction(r))) if r is not None else 0.0 for r in restduration_frac[:-1]] + [None]
     pairs = zip(thr_rd[:-1], thr_rd[1:-1])
     rrest = [None] + [getOneDegreeChange(x1, x2) for x1, x2 in pairs] + [None]
     return rrest
@@ -659,7 +659,7 @@ def getBoundaryStrengthIOI(rioi, ioi, threshold=4.0):
 
 def getBoundaryStrengthRest(rrest, restduration_frac, threshold=4.0):
     #need rest AFTER note, and apply threshold
-    thr_rd = [min(threshold, float(Fraction(r))) for r in restduration_frac[:-1]] + [None]
+    thr_rd = [min(threshold, float(Fraction(r))) if r is not None else 0.0 for r in restduration_frac[:-1]] + [None]
     return getBoundaryStrength(rrest, thr_rd)
 
 #Cambouropoulos 2001
@@ -711,7 +711,10 @@ def m21TORestDuration_frac(s):
         if event.isRest:
             rest_duration += Fraction(event.duration.quarterLength)
         if event.isNote:
-            restdurations.append(str(rest_duration))
+            if rest_duration == 0:
+                restdurations.append(None)
+            else:
+                restdurations.append(str(rest_duration))
             rest_duration = Fraction(0)
     #shift list and add last
     if notesandrests[-1].isNote:
@@ -900,8 +903,15 @@ def getIOR(ior_frac):
 def getIOI(ioi_frac):
     return [float(Fraction(i)) if i is not None else None for i in ioi_frac]
 
+#last should be none
 def getIOI_frac(duration_frac, restduration_frac):
-    return [str(Fraction(d)+Fraction(r)) if r is not None else None for d, r, in zip(duration_frac, restduration_frac)]
+    res =  [str(Fraction(d)+Fraction(r)) if r is not None else str(Fraction(d)) for d, r, in zip(duration_frac[:-1], restduration_frac[:-1])]
+    #check last item. If no rest follows, we cannot compute IOI
+    if restduration_frac[-1] is not None:
+        res = res + [ str( Fraction(duration_frac[-1])+Fraction(restduration_frac[-1]) ) ]
+    else:
+        res = res + [None]
+    return res
 
 def getOnsetTick(nlbid, path):
     return getFromJson(nlbid, path, 'onset', int)
