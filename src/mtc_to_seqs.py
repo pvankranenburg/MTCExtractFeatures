@@ -601,7 +601,6 @@ def getOneDegreeChange(x1, x2, const_add=0.0):
         res = float(abs(x1-x2)) / float (x1 + x2)
     return res
 
-#degree of change of the interval BEFORE the note
 #Cambouropoulos 2001
 def getDegreeChangeLBDMpitch(chromaticinterval, threshold=12, const_add=1):
     # we need absolute values
@@ -1040,6 +1039,7 @@ def getSequences(
         else:
             origin = ''
         try:
+            #pass
             timesignature = m21TOTimeSignature(s)
             beat_str, beat_fraction_str = m21TOBeat_str(s)
             beat_float = m21TOBeat_float(s)
@@ -1118,7 +1118,6 @@ def getSequences(
         }}
         if textFeatureFile and (nlbid not in nlbids_notvocal):
             try:
-                #pass
                 lyrics, noncontentword, wordend, phoneme, rhymes, rhymescontentwords, wordstress, melismastate = \
                     getTextFeatures(nlbid, textFeatureFile)
                 seq['features']['lyrics'] = lyrics
