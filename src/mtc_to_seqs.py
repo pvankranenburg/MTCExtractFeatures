@@ -531,7 +531,7 @@ def getFranklandGPR2a(restduration):
     return [ min(1.0, float(Fraction(r) / 4.0)) if r is not None else None for r in restduration]
 
 def getOneFranklandGPR2b(n1,n2,n3,n4):
-    return ( 1.0 - (float(n1+n3)/2.0*n2) ) if (n2>n3) and (n2>n1) else None
+    return ( 1.0 - (float(n1+n3)/(2.0*n2)) ) if (n2>n3) and (n2>n1) else None
 
 #compute boundary strength for the potential boundary FOLLOWING the note.
 #For the rule to apply, n2 must be longer than both n1 and n3. In addition
@@ -890,7 +890,7 @@ def midipitch2contour5(mp, thresh=3, undef=None):
     return [undef] + [getContour5(p[0], p[1], thresh) for p in zip(mp,mp[1:])]
 
 def getIOR_frac(ioi_frac):
-    return [None] + [str(Fraction(ioi2)/Fraction(ioi1)) for ioi1, ioi2 in zip(ioi_frac,ioi_frac[1:])]
+    return [None] + [str(Fraction(ioi2)/Fraction(ioi1)) if ioi1 is not None and ioi2 is not None else None for ioi1, ioi2 in zip(ioi_frac,ioi_frac[1:])]
 
 def getIOR(ior_frac):
     return [float(Fraction(i)) if i is not None else None for i in ior_frac]
@@ -997,9 +997,10 @@ def getSequences(
         phrasepos = getPhrasePos(nlbid, jsondir)
         phrase_end = getPhraseEnd(phrasepos)
         phrase_ix = getPhraseIx(phrasepos)
-        ior = getIOR(nlbid, jsondir)
         ioi_frac = getIOI_frac(duration_frac, restduration_frac)
         ioi = getIOI(ioi_frac)
+        ior_frac = getIOR_frac(ioi_frac)
+        ior = getIOR(ior_frac)
         songpos = getSongPos(onsettick)
         gpr2a_Frankland = getFranklandGPR2a(restduration_frac)
         gpr2b_Frankland = getFranklandGPR2b(duration, restduration_frac) #or use IOI and no rest check!!!
@@ -1081,6 +1082,7 @@ def getSequences(
                                       'beatinphrase_end': beatinphrase_end,
                                       'IOI_frac': ioi_frac,
                                       'IOI': ioi,
+                                      'IOR_frac': ior_frac,
                                       'IOR': ior,
                                       'imacontour': ic,
                                       'pitch': pitch,
@@ -1102,10 +1104,11 @@ def getSequences(
                                       'lbdm_rpitch': lbdm_rpitch,
                                       'lbdm_rioi': lbdm_rioi,
                                       'lbdm_rrest': lbdm_rrest,
-                                      'lbdm_boundarystrength': lbdm_boundarystrength }}
+                                      'lbdm_boundarystrength': lbdm_boundarystrength
+        }}
         if textFeatureFile and (nlbid not in nlbids_notvocal):
             try:
-               
+                #pass
                 lyrics, noncontentword, wordend, phoneme, rhymes, rhymescontentwords, wordstress, melismastate = \
                     getTextFeatures(nlbid, textFeatureFile)
                 seq['features']['lyrics'] = lyrics
@@ -1128,7 +1131,6 @@ def getSequences(
             if len(seq['features'][feat]) != reflength:
                 print(f'Error: {nlbid}: length of {feat} differs.')
                 print(f'Difference: {len(seq["features"][feat])-reflength}')
-                print(list(zip_longest(seq['features']['pitch'],seq['features'][feat],fillvalue="MISSING")))
                 raise FeatLenghtError(nlbid)
         yield seq
 
