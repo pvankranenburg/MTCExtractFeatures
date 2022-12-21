@@ -479,6 +479,13 @@ class NoKeyError(Exception):
     def __str__(self):
         return repr(self.message)
 
+#No notes in **krn
+class NoNotesError(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        return repr(self.message)
+
 # add left padding to partial measure after repeat bar
 def padSplittedBars(s):
     partIds = [part.id for part in s.parts] 
@@ -508,6 +515,9 @@ def parseMelody(path):
     m = s_noties.flat
     removeGrace(m)
     replaceChord(m)
+    notes = list(m.flat.notes.stream())
+    if len(notes) == 0:
+        raise NoNotesError("")
     return m
 
 # s : flat music21 stream without ties and without grace notes
@@ -996,9 +1006,12 @@ def getPhraseInfo(s):
     lineends = lineoffsets[1:] + [Fraction(s.flat.notesAndRests.last().offset) + Fraction(s.flat.notesAndRests.last().quarterLength)]
 
     offsetsfinalnotes = []
-    for off in lineends:
+    for ix, off in enumerate(lineends):
         n = s.flat.notes.stream().getElementBeforeOffset(off)
-        offsetsfinalnotes.append(Fraction(n.offset))    
+        if n == None: #There is no Note. Probably a first phrase with only rests...
+            offsetsfinalnotes.append(lineoffsets[ix]) #add start of phrase. Results in phrase of length 0.
+        else:
+            offsetsfinalnotes.append(Fraction(n.offset)) 
 
     phraselengths = [offsetsfinalnotes[i] - lineoffsets[i] for i in range(len(lineoffsets))]
 
@@ -1170,6 +1183,9 @@ def getSequences(
             s = parseMelody(str(Path(krndir,nlbid+'.krn')))
         except ParseError:
             print(nlbid, "does not exist")
+            continue
+        except NoNotesError:
+            print(nlbid, "has not notes.")
             continue
 
         sd = m21TOscaledegrees(s)
@@ -1637,8 +1653,9 @@ def main():
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_thesession:
-        with open(f'thesession_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-            for seq in thesession2seqs(startat=args.startat):
+        #with open(f'thesession_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+        for seq in thesession2seqs(startat=args.startat):
+            with open(os.path.join('/Users/krane108/data/thesession/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_cre:
