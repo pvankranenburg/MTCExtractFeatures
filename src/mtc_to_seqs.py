@@ -12,6 +12,7 @@ from pathlib import Path
 from itertools import zip_longest
 from math import gcd
 import subprocess
+import sys, traceback
 
 from MTCFeatures.MTCFeatureLoader import MTCFeatureLoader
 
@@ -21,11 +22,9 @@ epsilon = 0.0001
 # ${mtcroot}/MTC-FS-INST-2.0/metadata
 # ${mtcroot}/MTC-LC-1.0/metadata
 # ${mtcroot}/MTC-ANN-2.0.1/metadata
-# ${mtckrnroot}/MTC-FS-INST-2.0/krn
-# ${mtckrnroot}/MTC-LC-1.0/krn
-# ${mtckrnroot}/MTC-ANN-2.0.1/krn
-
-# The kernfiles should not contain grace notes
+# ${mtcroot}/MTC-FS-INST-2.0/krn
+# ${mtcroot}/MTC-LC-1.0/krn
+# ${mtcroot}/MTC-ANN-2.0.1/krn
 
 parser = argparse.ArgumentParser(description='Convert MTC .krn to feature sequences')
 
@@ -105,7 +104,7 @@ parser.add_argument(
     '-thesessionroot',
     type=str,
     help='path to The Session data. ${thesessionroot}/krn, ${thesessionroot}/ses_id2title.csv should exist',
-    default='/Users/krane108/git/polifonia-project/tunes-dataset/data/thesession'
+    default='/Users/krane108/data/MELFeatures/thesession'
 )
 
 ### CRE
@@ -120,7 +119,7 @@ parser.add_argument(
     '-creroot',
     type=str,
     help='path to CRE data. ${creroot}/krn, ${cre}/cre_id2title.csv should exist',
-    default='/Users/krane108/git/polifonia-project/tunes-dataset/data/CRE'
+    default='/Users/krane108/data/MELFeatures/cre'
 )
 
 
@@ -143,7 +142,7 @@ mtcannkrndir = Path(args.mtcroot, 'MTC-ANN-2.0.1','krn')
 mtclckrndir = Path(args.mtcroot, 'MTC-LC-1.0','krn')
 
 essenroot = Path(args.essenroot)
-essenkrndir = Path(args.essenroot, 'allkrn')
+essenkrndir = Path(args.essenroot, 'krn')
 essenmetadatapath = Path(args.essenroot, 'metadata.csv')
 
 choraleroot = Path(args.choraleroot)
@@ -151,7 +150,7 @@ choralekrndir = Path(args.choraleroot, 'allkrn')
 choralemetadatapath = Path(args.choraleroot, 'metadata.csv')
 
 thesessionroot = Path(args.thesessionroot)
-thesessionkrndir = Path(args.thesessionroot, 'krn')
+thesessionkrndir = Path(args.thesessionroot, 'krn_mono')
 thesessionmeatadatapath = Path(args.thesessionroot, 'ses_id2title.csv')
 
 creroot = Path(args.creroot)
@@ -1170,8 +1169,8 @@ def getSequences(
         fieldmap={'TuneFamily':'TuneFamily', 'TuneFamily_full' : 'TuneFamily'},
         startat=None,
     ):
+
     seen=False
-    
     for nlbid in id_list:
         if startat:
             if nlbid==startat:
@@ -1186,6 +1185,12 @@ def getSequences(
             continue
         except NoNotesError:
             print(nlbid, "has not notes.")
+            continue
+        except Exception:
+            print("Exception in user code:")
+            print("-"*60)
+            traceback.print_exc(file=sys.stdout)
+            print("-"*60)
             continue
 
         sd = m21TOscaledegrees(s)
@@ -1643,8 +1648,9 @@ def main():
                 outfile.write(json.dumps(seq)+'\n')
             
     if args.gen_essen:
-        with open(f'essen_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-            for seq in essen2seqs(startat=args.startat):
+        #with open(f'essen_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+        for seq in essen2seqs(startat=args.startat):
+            with open(os.path.join('/Users/krane108/data/MELFeatures/essen/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_chorales:
@@ -1655,13 +1661,13 @@ def main():
     if args.gen_thesession:
         #with open(f'thesession_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
         for seq in thesession2seqs(startat=args.startat):
-            with open(os.path.join('/Users/krane108/data/thesession/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
+            with open(os.path.join('/Users/krane108/data/MELFeatures/thesession/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_cre:
         #with open(f'cre_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
         for seq in cre2seqs(startat=args.startat):
-            with open(os.path.join('crejson', f'{seq["id"]}.json'), 'w') as outfile:
+            with open(os.path.join('/Users/krane108/data/MELFeatures/cre/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
 if __name__== "__main__":
