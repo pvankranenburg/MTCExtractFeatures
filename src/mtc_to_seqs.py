@@ -103,7 +103,7 @@ parser.add_argument(
 parser.add_argument(
     '-thesessionroot',
     type=str,
-    help='path to The Session data. ${thesessionroot}/krn, ${thesessionroot}/ses_id2title.csv should exist',
+    help='path to The Session data. ${thesessionroot}/krn_mono, ${thesessionroot}/ses_id2title.csv should exist',
     default='/Users/krane108/data/MELFeatures/thesession'
 )
 
@@ -120,6 +120,21 @@ parser.add_argument(
     type=str,
     help='path to CRE data. ${creroot}/krn, ${cre}/cre_id2title.csv should exist',
     default='/Users/krane108/data/MELFeatures/cre'
+)
+
+### Eyck
+parser.add_argument(
+    '-eyck',
+    dest='gen_eyck',
+    help='Generate sequences for Fluyten Lusthof by Van Eyck.',
+    default=False,
+    action='store_true'
+)
+parser.add_argument(
+    '-eyckroot',
+    type=str,
+    help='path to CRE data. ${creroot}/krn, ${cre}/metadata.csv should exist',
+    default='/Users/krane108/data/MELFeatures/eyck'
 )
 
 
@@ -156,6 +171,10 @@ thesessionmeatadatapath = Path(args.thesessionroot, 'ses_id2title.csv')
 creroot = Path(args.creroot)
 crekrndir = Path(args.creroot, 'krn')
 cremetadatapath = Path(args.creroot, 'cre_id2title.csv')
+
+eyckroot = Path(args.eyckroot)
+eyckkrndir = Path(args.eyckroot, 'krn')
+eyckmetadatapath = Path(args.eyckroot, 'metadata.csv')
 
 mtcfsinsttextfeatspath = Path(args.mtcfsinsttextfeatspath)
 mtcanntextfeatspath = Path(args.mtcanntextfeatspath)
@@ -1630,6 +1649,58 @@ def cre2seqs(startat=None):
     ):
         yield(seq)
 
+def eyck2seqs(startat=None):
+    eyck_song_metadata = pd.read_csv(
+        str(Path(eyckroot,'metadata.csv')),
+        na_filter=False,
+        index_col=0,
+        header=0,
+        encoding='utf8',
+        delimiter=';',
+        names=[
+            "filename",
+            "songid",
+            "serial_number",
+            "serial_number_sub",
+            "title",
+            "tunefamily_id",
+            "tunefamily",
+            "variation",
+            "source_id",
+            "type",
+        ]
+    )
+    eyck_source_metadata = pd.read_csv(
+        str(Path(eyckroot,'sources.csv')),
+        na_filter=False,
+        index_col=0,
+        header=0,
+        delimiter=';',
+        encoding='utf8',
+        names=[
+            "source_id",
+            "title",
+            "author",
+            "place_publisher",
+            "dating",
+            "sorting_year",
+            "type",
+            "copy_used",
+            "scan_url"
+        ]
+    )
+    
+    for seq in getSequences(
+        eyck_song_metadata.index,
+        krndir=eyckkrndir,
+        song_metadata=eyck_song_metadata,
+        source_metadata=eyck_source_metadata,
+        fieldmap = {'tunefamily':'tunefamily_id', 'tunefamily_full' : 'tunefamily'},
+        startat=startat
+    ):
+        yield(seq)
+
+
 
 def main():
     # MTC-LC-1.0 does not have a key tandem in the *kern files. Therefore not possible to compute scale degrees.
@@ -1668,6 +1739,12 @@ def main():
         #with open(f'cre_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
         for seq in cre2seqs(startat=args.startat):
             with open(os.path.join('/Users/krane108/data/MELFeatures/cre/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
+                outfile.write(json.dumps(seq)+'\n')
+
+    if args.gen_eyck:
+        #with open(f'eyck_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+        for seq in eyck2seqs(startat=args.startat):
+            with open(os.path.join('/Users/krane108/data/MELFeatures/eyck/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
 if __name__== "__main__":
