@@ -1127,6 +1127,9 @@ def getPitch40_Hewlett(s):
 def getPitch40_Sapp(s):
     return [pitch2base40_sapp[n.pitch.name] + 40*(n.octave) for n in s.notes]
 
+def getOctave(s):
+    return [n.octave for n in s.notes]
+
 def getContour3(midipitch1, midipitch2):
     if midipitch1 > midipitch2 : return '-'
     if midipitch1 < midipitch2 : return '+'
@@ -1300,6 +1303,7 @@ def getSequences(
         pitch = m21TOPitches(s)
         pitch40_hewlett = getPitch40_Hewlett(s)
         pitch40_sapp = getPitch40_Sapp(s)
+        octave = getOctave(s)
         midipitch = m21TOMidiPitch(s)
         pitchproximity = getPitchProximity(chromaticinterval)
         pitchreversal = getPitchReversal(chromaticinterval)
@@ -1389,6 +1393,7 @@ def getSequences(
                 'imaweight_spectral':ima_spect,
                 'pitch40_hewlett': pitch40_hewlett,
                 'pitch40_sapp': pitch40_sapp,
+                'octave': octave,
                 'midipitch': midipitch,
                 'diatonicpitch' : diatonicPitches,
                 'diatonicinterval': diatonicinterval,
