@@ -47,19 +47,19 @@ parser.add_argument(
     '-mtcroot',
     type=str,
     help='path to MTC to find metadata',
-    default='/Users/pvk/data/MTC/'
+    default='/Users/krane108/data/MTC/'
 )
 parser.add_argument(
     '-mtcanntextfeatspath',
     type=str,
     help='filename with text features for MTC-ANN',
-    default='/Users/pvk/git/MTCExtractFeatures/src/mtcann_textfeatures.jsonl'
+    default='/Users/krane108/git/MTCExtractFeatures/src/mtcann_textfeatures.jsonl'
 )
 parser.add_argument(
     '-mtcfsinsttextfeatspath',
     type=str,
     help='filename with text features for MTC-FS-INST',
-    default='/Users/pvk/git/MTCExtractFeatures/src/mtcfsinst_textfeatures.jsonl'
+    default='/Users/krane108/git/MTCExtractFeatures/src/mtcfsinst_textfeatures.jsonl'
 )
 
 ### ESSEN
@@ -74,7 +74,7 @@ parser.add_argument(
     '-essenroot',
     type=str,
     help='path to essen data. ${essenroot}/allkrn, ${essenroot}/metadata.csv should exist',
-    default='/Users/pvk/data/essen'
+    default='/Users/krane108/data/essen'
 )
 
 ### BACH CHORALES
@@ -91,6 +91,22 @@ parser.add_argument(
     help='path to chorale data. ${choraleroot}/allkrn, ${choraleroot}/metadata.csv should exist',
     default='/Users/krane108/data/bachchorales'
 )
+
+### RISM INCIPITS
+parser.add_argument(
+    '-rism',
+    dest='gen_rism',
+    help='Generate sequences for Rism incipits.',
+    default=False,
+    action='store_true'
+)
+parser.add_argument(
+    '-rismroot',
+    type=str,
+    help='path to rism data. ${rismroot}/rismmetadata.csv should exist',
+    default='/Users/krane108/data/rism_incipits_230419'
+)
+
 
 ### THE SESSION
 parser.add_argument(
@@ -178,6 +194,10 @@ thesessionmeatadatapath = Path(args.thesessionroot, 'ses_id2title.csv')
 creroot = Path(args.creroot)
 crekrndir = Path(args.creroot, 'krn')
 cremetadatapath = Path(args.creroot, 'cre_id2title.csv')
+
+rismroot = Path(args.rismroot)
+rismkrndir = Path(args.rismroot, 'krn')
+rismmetadatapath = Path(args.rismroot, 'metadata.csv')
 
 eyckroot = Path(args.eyckroot)
 eyckkrndir = Path(args.eyckroot, 'krn')
@@ -687,6 +707,9 @@ def getOneFranklandGPR2b(n1,n2,n3,n4):
 #For the rule to apply, n2 must be longer than both n1 and n3. In addition
 #n1 through n4 must be notes (not rests)
 def getFranklandGPR2b(lengths, restdurations):
+    #only applicable to melodies of length > 4
+    if len(lengths) < 4:
+        return [None] * len(lengths)
     quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
     res =  [None] + [getOneFranklandGPR2b(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
     
@@ -696,7 +719,7 @@ def getFranklandGPR2b(lengths, restdurations):
     triple_rest_present = zip(rest_present,rest_present[1:],rest_present[2:])
     rest_mask = [False] + [not (r1 or r2 or r3) for r1, r2, r3 in triple_rest_present] + [False]
     #now set all values in res to None if False in mask
-    res = [res[ix] if rest_mask[ix] else None for ix in range(len(res))]   
+    res = [res[ix] if rest_mask[ix] else None for ix in range(len(res))]
     return res
     
 
@@ -709,6 +732,9 @@ def getOneFranklandGPR3a(n1, n2, n3, n4):
 #The rule applies only if the transition from n2 to n3 is greater than from n1 to n2
 #and from n3 to n4. In addition, the transition from n2 to n3 must be nonzero
 def getFranklandGPR3a(midipitch):
+    #only applicable to melodies of length > 4
+    if len(midipitch) < 4:
+        return [None] * len(midipitch)
     quads = zip(midipitch,midipitch[1:],midipitch[2:],midipitch[3:])
     return  [None] + [getOneFranklandGPR3a(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
 
@@ -722,6 +748,9 @@ def getOneFranklandGPR3d(n1,n2,n3, n4):
 
 #... to apply, the length of n1 must equal n2, and the length of n3 must euqal n4
 def getFranklandGPR3d(lengths):
+    #only applicable to melodies of length > 4
+    if len(lengths) < 4:
+        return [None] * len(lengths)
     quads = zip(lengths,lengths[1:],lengths[2:],lengths[3:])
     return [None] + [getOneFranklandGPR3d(n1, n2, n3, n4) for n1, n2, n3, n4 in quads] + [None, None]
     #condition checking in getOneFranklandGRP3d()
@@ -753,6 +782,9 @@ def getOneDegreeChange(x1, x2, const_add=0.0):
 
 #Cambouropoulos 2001
 def getDegreeChangeLBDMpitch(chromaticinterval, threshold=12, const_add=1):
+    #for lbdm we need at least 3 notes
+    if len(chromaticinterval) < 3:
+        return [None] * len(chromaticinterval)
     # we need absolute values
     # and thr_int <= threshold
     # and shift such that chormaticinterval is interval FOLLOWING note
@@ -764,6 +796,9 @@ def getDegreeChangeLBDMpitch(chromaticinterval, threshold=12, const_add=1):
 #Cambouropoulos 2001
 #default threshold: whole note (4.0 quarterLength)
 def getDegreeChangeLBDMioi(ioi, threshold=4.0):
+    #for lbdm we need at least 3 notes
+    if len(ioi) < 3:
+        return [None] * len(ioi)
     #We need IOI AFTER the note, and we need maximize the value
     thr_ioi = [min(threshold,i) for i in ioi[:-1]] + [None]
     pairs = zip(thr_ioi[:-1],thr_ioi[1:-1])
@@ -772,6 +807,9 @@ def getDegreeChangeLBDMioi(ioi, threshold=4.0):
     
 #Cambouropoulos 2001
 def getDegreeChangeLBDMrest(restduration_frac, threshold=4.0):
+    #for lbdm we need at least 3 notes
+    if len(restduration_frac) < 3:
+        return [None] * len(restduration_frac)
     #need rest AFTER note, and apply threshold
     thr_rd = [min(threshold, float(Fraction(r))) if r is not None else 0.0 for r in restduration_frac[:-1]] + [None]
     pairs = zip(thr_rd[:-1], thr_rd[1:-1])
@@ -795,6 +833,9 @@ def getBoundaryStrength(rs, intervals):
     return strength
     
 def getBoundaryStrengthPitch(rpitch, chromaticinterval, threshold=12):
+    #for lbdm we need at least 3 notes
+    if len(chromaticinterval) < 3:
+        return [None] * len(chromaticinterval)
     # we need absolute values
     # and thr_int <= threshold
     # and shift such that chormaticinterval is interval FOLLOWING note
@@ -802,11 +843,17 @@ def getBoundaryStrengthPitch(rpitch, chromaticinterval, threshold=12):
     return getBoundaryStrength(rpitch, thr_int)
 
 def getBoundaryStrengthIOI(rioi, ioi, threshold=4.0):
+    #for lbdm we need at least 3 notes
+    if len(ioi) < 3:
+        return [None] * len(ioi)
     #We need IOI AFTER the note, and we need maximize the value
     thr_ioi = [min(threshold,i) for i in ioi[:-1]] + [None]
     return getBoundaryStrength(rioi, thr_ioi)
 
 def getBoundaryStrengthRest(rrest, restduration_frac, threshold=4.0):
+    #for lbdm we need at least 3 notes
+    if len(restduration_frac) < 3:
+        return [None] * len(restduration_frac)
     #need rest AFTER note, and apply threshold
     thr_rd = [min(threshold, float(Fraction(r))) if r is not None else 0.0 for r in restduration_frac[:-1]] + [None]
     return getBoundaryStrength(rrest, thr_rd)
@@ -814,6 +861,9 @@ def getBoundaryStrengthRest(rrest, restduration_frac, threshold=4.0):
 #Cambouropoulos 2001
 #Gives strength fot boundary AFTER the note
 def getLocalBoundaryStrength(spitch, sioi, srest):
+    #for lbdm we need at least 3 notes
+    if len(spitch) < 3:
+        return [None] * len(spitch)
     triplets = zip(spitch[1:-2], sioi[1:-2], srest[1:-2]) #remove None values at begin and end
     strength = [0.25*p + 0.5*i + 0.25*r for p, i, r in triplets]
     strength = [None] + strength + [None, None]
@@ -1067,6 +1117,7 @@ def getPhraseEnd(phrasepos):
     return [x[1]<x[0] for x in zip(phrasepos, phrasepos[1:])] + [True]
 
 def getPitch40(s):
+    #TODO: include octave    
     return [pitch2base40[n.pitch.name] for n in s.notes]
 
 def getContour3(midipitch1, midipitch2):
@@ -1186,8 +1237,8 @@ class GetTextFeatures():
 getTextFeatures = GetTextFeatures()
 
 #iterator
+#song ids should be in index of song_metadata
 def getSequences(
-        id_list,
         krndir,
         song_metadata,
         source_metadata,
@@ -1197,6 +1248,8 @@ def getSequences(
         only=None,
     ):
 
+    id_list = song_metadata.index
+
     seen=False
     for nlbid in id_list:
         if startat:
@@ -1204,14 +1257,21 @@ def getSequences(
                 seen=True
             if not seen:
                 continue
-        if nlbid:
+        if only:
             if nlbid != only:
                 continue
 
         print(nlbid)
         
+        #construct filename
+        #rep might have subdirectories (e.g. rism)
+        if 'filename' in song_metadata.columns:
+            filename = str(Path(krndir, song_metadata.loc[nlbid,'filename']))
+        else:
+            filename = str(Path(krndir,nlbid+'.krn'))
+
         try:
-            s = parseMelody(str(Path(krndir,nlbid+'.krn')))
+            s = parseMelody(filename)
         except ParseError:
             print(nlbid, "does not exist")
             continue
@@ -1266,10 +1326,15 @@ def getSequences(
         lbdm_rrest = getDegreeChangeLBDMrest(restduration_frac)
         lbdm_srest = getBoundaryStrengthRest(lbdm_rrest, restduration_frac)
         lbdm_boundarystrength = getLocalBoundaryStrength(lbdm_spitch, lbdm_sioi, lbdm_srest)
+        sorting_year = ''
+        #MTC:
         if song_metadata.loc[nlbid,'source_id']:
             sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
-        else:
-            sorting_year = ''
+        #RISM
+        if 'sorting_year' in song_metadata:
+            sorting_year = song_metadata.loc[nlbid,'sorting_year']
+        if pd.isna(sorting_year):
+            sorting_year = "-1"
         if sorting_year == '':
             sorting_year = "-1" #UGLY
         sorting_year = int(sorting_year)
@@ -1299,67 +1364,71 @@ def getSequences(
             beatstrength = [None]*len(sd)
             beatinsong, beatinphrase, beatfraction = [None]*len(sd), [None]*len(sd), [None]*len(sd)
             beatinphrase_end = [None]*len(sd)        
-        seq = {'id':nlbid, 'tunefamily': str(song_metadata.loc[nlbid, fieldmap['tunefamily']]),
-                        'year' : sorting_year,
-                        'tunefamily_full': str(song_metadata.loc[nlbid, fieldmap['tunefamily_full']]),
-                        'type' : str(song_metadata.loc[nlbid, 'type']),
-                        'freemeter' : not hasmeter(s),
-                        'origin' : origin,
-                        'features': { 'scaledegree': sd,
-                                      'scaledegreespecifier' : sdspec,
-                                      'tonic': tonic,
-                                      'mode': mode,
-                                      'metriccontour':mc,
-                                      'imaweight':ima,
-                                      'imaweight_spectral':ima_spect,
-                                      'pitch40': pitch40,
-                                      'midipitch': midipitch,
-                                      'diatonicpitch' : diatonicPitches,
-                                      'diatonicinterval': diatonicinterval,
-                                      'chromaticinterval': chromaticinterval,
-                                      'pitchproximity': pitchproximity,
-                                      'pitchreversal': pitchreversal,
-                                      'nextisrest': nextisrest,
-                                      'restduration_frac': restduration_frac,
-                                      'duration': duration,
-                                      'duration_frac': duration_frac,
-                                      'duration_fullname': duration_fullname,
-                                      'durationcontour': durationcontour,
-                                      'onsettick': onsettick,
-                                      'beatfraction': beatfraction,
-                                      'phrasepos': phrasepos,
-                                      'phrase_ix': phrase_ix,
-                                      'phrase_end': phrase_end,
-                                      'songpos': songpos,
-                                      'beatinsong': beatinsong,
-                                      'beatinphrase': beatinphrase,
-                                      'beatinphrase_end': beatinphrase_end,
-                                      'IOI_frac': ioi_frac,
-                                      'IOI': ioi,
-                                      'IOR_frac': ior_frac,
-                                      'IOR': ior,
-                                      'imacontour': ic,
-                                      'pitch': pitch,
-                                      'contour3' : contour3,
-                                      'contour5' : contour5,
-                                      'beatstrength': beatstrength,
-                                      'beat_str': beat_str,
-                                      'beat_fraction_str': beat_fraction_str,
-                                      'beat': beat_float,
-                                      'timesignature': timesignature,
-                                      'gpr2a_Frankland': gpr2a_Frankland,
-                                      'gpr2b_Frankland': gpr2b_Frankland,
-                                      'gpr3a_Frankland': gpr3a_Frankland,
-                                      'gpr3d_Frankland': gpr3d_Frankland,
-                                      'gpr_Frankland_sum': gpr_Frankland_sum,
-                                      'lbdm_spitch': lbdm_spitch,
-                                      'lbdm_sioi': lbdm_sioi,
-                                      'lbdm_srest': lbdm_srest,
-                                      'lbdm_rpitch': lbdm_rpitch,
-                                      'lbdm_rioi': lbdm_rioi,
-                                      'lbdm_rrest': lbdm_rrest,
-                                      'lbdm_boundarystrength': lbdm_boundarystrength
-        }}
+        seq = {
+            'id':nlbid, 'tunefamily': str(song_metadata.loc[nlbid, fieldmap['tunefamily']]),
+            'year' : sorting_year,
+            'tunefamily_full': str(song_metadata.loc[nlbid, fieldmap['tunefamily_full']]),
+            'type' : str(song_metadata.loc[nlbid, 'type']),
+            'freemeter' : not hasmeter(s),
+            'origin' : origin,
+            'features': {
+                'scaledegree': sd,
+                'scaledegreespecifier' : sdspec,
+                'tonic': tonic,
+                'mode': mode,
+                'metriccontour':mc,
+                'imaweight':ima,
+                'imaweight_spectral':ima_spect,
+                'pitch40': pitch40,
+                'midipitch': midipitch,
+                'diatonicpitch' : diatonicPitches,
+                'diatonicinterval': diatonicinterval,
+                'chromaticinterval': chromaticinterval,
+                'pitchproximity': pitchproximity,
+                'pitchreversal': pitchreversal,
+                'nextisrest': nextisrest,
+                'restduration_frac': restduration_frac,
+                'duration': duration,
+                'duration_frac': duration_frac,
+                'duration_fullname': duration_fullname,
+                'durationcontour': durationcontour,
+                'onsettick': onsettick,
+                'beatfraction': beatfraction,
+                'phrasepos': phrasepos,
+                'phrase_ix': phrase_ix,
+                'phrase_end': phrase_end,
+                'songpos': songpos,
+                'beatinsong': beatinsong,
+                'beatinphrase': beatinphrase,
+                'beatinphrase_end': beatinphrase_end,
+                'IOI_frac': ioi_frac,
+                'IOI': ioi,
+                'IOR_frac': ior_frac,
+                'IOR': ior,
+                'imacontour': ic,
+                'pitch': pitch,
+                'contour3' : contour3,
+                'contour5' : contour5,
+                'beatstrength': beatstrength,
+                'beat_str': beat_str,
+                'beat_fraction_str': beat_fraction_str,
+                'beat': beat_float,
+                'timesignature': timesignature,
+                'gpr2a_Frankland': gpr2a_Frankland,
+                'gpr2b_Frankland': gpr2b_Frankland,
+                'gpr3a_Frankland': gpr3a_Frankland,
+                'gpr3d_Frankland': gpr3d_Frankland,
+                'gpr_Frankland_sum': gpr_Frankland_sum,
+                'lbdm_spitch': lbdm_spitch,
+                'lbdm_sioi': lbdm_sioi,
+                'lbdm_srest': lbdm_srest,
+                'lbdm_rpitch': lbdm_rpitch,
+                'lbdm_rioi': lbdm_rioi,
+                'lbdm_rrest': lbdm_rrest,
+                'lbdm_boundarystrength': lbdm_boundarystrength
+            }
+        }
+        #if False:
         if textFeatureFile and (nlbid not in nlbids_notvocal):
             try:
                 lyrics, noncontentword, wordend, phoneme, rhymes, rhymescontentwords, wordstress, melismastate = \
@@ -1481,7 +1550,6 @@ def ann2seqs(startat=None, only=None):
         )
     print(mtcannkrndir)
     for seq in getSequences(
-        ann_song_metadata.index,
         krndir=mtcannkrndir,
         song_metadata=ann_full_metadata,
         source_metadata=ann_source_metadata,
@@ -1559,7 +1627,6 @@ def fsinst2seqs(startat=None, only=None):
     fsinst_song_metadata.loc[ids_ann_bgcorpus,'ann_bgcorpus'] = True
     
     for seq in getSequences(
-        fsinst_song_metadata.index,
         krndir=mtcfskrndir,
         song_metadata=fsinst_song_metadata,
         source_metadata=fsinst_source_metadata,
@@ -1584,7 +1651,6 @@ def essen2seqs(startat=None, only=None):
     essen_song_metadata['source_id'] = ''
 
     for seq in getSequences(
-        essen_song_metadata.index,
         krndir=essenkrndir,
         song_metadata=essen_song_metadata,
         source_metadata=None,
@@ -1608,7 +1674,6 @@ def chorale2seqs(startat=None, only=None):
     chorale_song_metadata['source_id'] = ''
 
     for seq in getSequences(
-        chorale_song_metadata.index,
         krndir=choralekrndir,
         song_metadata=chorale_song_metadata,
         source_metadata=None,
@@ -1633,7 +1698,6 @@ def thesession2seqs(startat=None, only=None):
     thesession_song_metadata['source_id'] = ''
 
     for seq in getSequences(
-        thesession_song_metadata.index,
         krndir=thesessionkrndir,
         song_metadata=thesession_song_metadata,
         source_metadata=None,
@@ -1658,12 +1722,37 @@ def cre2seqs(startat=None, only=None):
     cre_song_metadata['source_id'] = ''
 
     for seq in getSequences(
-        cre_song_metadata.index,
         krndir=crekrndir,
         song_metadata=cre_song_metadata,
         source_metadata=None,
         fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
         startat = startat,
+        only=only
+    ):
+        yield(seq)
+
+def rism2seqs(startat=None, only=None):
+
+    rism_song_metadata = pd.read_csv(
+        rismmetadatapath,
+        sep=',',
+        na_filter=False,
+        index_col=0,
+        encoding='utf8'
+    )
+    rism_song_metadata['tunefamily'] = ''
+    rism_song_metadata['type'] = ''
+    rism_song_metadata['source_id'] = ''
+
+    rism_song_metadata['sorting_year'] = pd.to_numeric(rism_song_metadata['sorting_year'])
+    rism_song_metadata['sorting_year'] = rism_song_metadata['sorting_year'].astype('Int16')
+
+    for seq in getSequences(
+        krndir=rismkrndir,
+        song_metadata=rism_song_metadata,
+        source_metadata=None,
+        fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
+        startat=startat,
         only=only
     ):
         yield(seq)
@@ -1710,7 +1799,6 @@ def eyck2seqs(startat=None, only=None):
     )
     
     for seq in getSequences(
-        eyck_song_metadata.index,
         krndir=eyckkrndir,
         song_metadata=eyck_song_metadata,
         source_metadata=eyck_source_metadata,
@@ -1759,6 +1847,21 @@ def main():
         #with open(f'cre_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
         for seq in cre2seqs(startat=args.startat, only=args.only):
             with open(os.path.join('/Users/krane108/data/MELFeatures/cre/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
+                outfile.write(json.dumps(seq)+'\n')
+
+    if args.gen_rism:
+        rism_song_metadata = pd.read_csv( #needed for file paths
+            rismmetadatapath,
+            sep=',',
+            na_filter=False,
+            index_col=0,
+            encoding='utf8'
+        )
+        #with open(f'rism_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+        for seq in rism2seqs(startat=args.startat, only=args.only):
+            outfilename = Path(rismroot, 'mtcjson', rism_song_metadata.loc[seq['id'],'filename'].replace('.krn','.json')) #.json
+            outfilename.parent.mkdir(parents=True, exist_ok=True)
+            with open(outfilename, 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_eyck:
