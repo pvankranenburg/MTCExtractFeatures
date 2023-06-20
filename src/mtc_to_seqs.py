@@ -444,7 +444,7 @@ nlbids_notvocal = [
     'NLB179913_01'
 ]
 
-base402pitch = {
+base402pitch_hewlett = {
     1:"C--",
     2:"C-",
     3:"C",
@@ -487,7 +487,8 @@ base402pitch = {
     40:"B##",
 }
 
-pitch2base40 = {v: k for k, v in base402pitch.items()}
+pitch2base40_hewlett = {v: k for k, v in base402pitch_hewlett.items()}
+pitch2base40_sapp    = {v: k-1 for k, v in base402pitch_hewlett.items()}
 
 #song has no meter
 class NoMeterError(Exception):
@@ -1116,9 +1117,15 @@ def getSongPos(onsettick):
 def getPhraseEnd(phrasepos):
     return [x[1]<x[0] for x in zip(phrasepos, phrasepos[1:])] + [True]
 
-def getPitch40(s):
-    #TODO: include octave    
-    return [pitch2base40[n.pitch.name] for n in s.notes]
+#defined here: http://www.ccarh.org/publications/reprints/base40/
+#Cbb = 1, middle C is octave 3
+def getPitch40_Hewlett(s):
+    return [pitch2base40_hewlett[n.pitch.name] + 40*(n.octave - 1) for n in s.notes]
+
+#defined here: https://wiki.ccarh.org/wiki/Base_40
+#Cbb = 0, middle C is octave 4
+def getPitch40_Sapp(s):
+    return [pitch2base40_sapp[n.pitch.name] + 40*(n.octave) for n in s.notes]
 
 def getContour3(midipitch1, midipitch2):
     if midipitch1 > midipitch2 : return '-'
@@ -1291,7 +1298,8 @@ def getSequences(
         diatonicinterval = toDiatonicIntervals(s)
         chromaticinterval = toChromaticIntervals(s)
         pitch = m21TOPitches(s)
-        pitch40 = getPitch40(s)
+        pitch40_hewlett = getPitch40_Hewlett(s)
+        pitch40_sapp = getPitch40_Sapp(s)
         midipitch = m21TOMidiPitch(s)
         pitchproximity = getPitchProximity(chromaticinterval)
         pitchreversal = getPitchReversal(chromaticinterval)
@@ -1379,7 +1387,8 @@ def getSequences(
                 'metriccontour':mc,
                 'imaweight':ima,
                 'imaweight_spectral':ima_spect,
-                'pitch40': pitch40,
+                'pitch40_hewlett': pitch40_hewlett,
+                'pitch40_sapp': pitch40_sapp,
                 'midipitch': midipitch,
                 'diatonicpitch' : diatonicPitches,
                 'diatonicinterval': diatonicinterval,
