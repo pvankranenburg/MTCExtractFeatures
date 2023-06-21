@@ -13,6 +13,7 @@ from itertools import zip_longest
 from math import gcd
 import subprocess
 import sys, traceback
+import tempfile
 
 from MTCFeatures.MTCFeatureLoader import MTCFeatureLoader
 
@@ -153,6 +154,14 @@ parser.add_argument(
     default='/Users/krane108/data/MELFeatures/eyck'
 )
 
+### OUTPUTPATH
+parser.add_argument(
+    '-outputpath',
+    type=str,
+    help='Directory to put resulting .json or jsonl files in.',
+    default='' # will be configured below
+)
+
 ### STARTAT
 parser.add_argument(
     '-startat',
@@ -161,12 +170,28 @@ parser.add_argument(
     default=''
 )
 
-### STARTAT
+### ONLY
 parser.add_argument(
     '-only',
     type=str,
     help='NLBID of the melody to process. Skips all other ones.',
     default=''
+)
+
+### STOPAT
+parser.add_argument(
+    '-stopat',
+    type=str,
+    help='NLBID of the melody to stop before (not inclusive). Skips all subsequent ones.',
+    default=''
+)
+
+### MISSING
+parser.add_argument(
+    '-missing',
+    help='Only generate missing .json files. Do not overwrite existing.',
+    default=False,
+    action='store_true'
 )
 
 args = parser.parse_args()
@@ -205,6 +230,32 @@ eyckmetadatapath = Path(args.eyckroot, 'metadata.csv')
 
 mtcfsinsttextfeatspath = Path(args.mtcfsinsttextfeatspath)
 mtcanntextfeatspath = Path(args.mtcanntextfeatspath)
+
+outputpath = '' #will be overridden with Path object, below
+
+if args.outputpath == '':
+    #set default
+    outputpath = tempfile.gettempdir()
+    #check command line
+    if args.gen_mtcann:
+        outputpath = '.'
+    if args.gen_mtcfsinst:
+        outputpath = '.'
+    if args.gen_essen:
+        outputpath = os.path.join(essenroot, 'mtcjson')
+    if args.gen_chorales:
+        outputpath = '.'
+    if args.gen_thesession:
+        outputpath = os.path.join(thesessionroot, 'mtcjson')
+    if args.gen_cre:
+        outputpath = os.path.join(creroot, 'mtcjson')
+    if args.gen_rism:
+        outputpath = os.path.join(rismroot, 'mtcjson')
+    if args.gen_eyck:
+        outputpath = os.path.join(eyckroot, 'mtcjson')
+else: #outputpath provided at command line
+    outputpath = args.outputpath
+
 
 #these are indicated as 'vocal' in MTC-FS-INST-2.0 metadata, but are NOT
 nlbids_notvocal = [
@@ -527,6 +578,13 @@ class NoKeyError(Exception):
 
 #No notes in **krn
 class NoNotesError(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        return repr(self.message)
+
+#No notes in **krn
+class MelodyTooShorError(Exception):
     def __init__(self, message):
         self.message = message
     def __str__(self):
@@ -1246,6 +1304,7 @@ class GetTextFeatures():
         )
 getTextFeatures = GetTextFeatures()
 
+#Generate the sequences
 #iterator
 #song ids should be in index of song_metadata
 def getSequences(
@@ -1255,7 +1314,9 @@ def getSequences(
         textFeatureFile=None,
         fieldmap={'TuneFamily':'TuneFamily', 'TuneFamily_full' : 'TuneFamily'},
         startat=None,
+        stopat=None,
         only=None,
+        missing=False, #True: only generate missing 
     ):
 
     id_list = song_metadata.index
@@ -1271,17 +1332,27 @@ def getSequences(
             if nlbid != only:
                 continue
 
+        if stopat:
+            if nlbid==stopat:
+                break
+        
         print(nlbid)
         
         #construct filename
         #rep might have subdirectories (e.g. rism)
         if 'filename' in song_metadata.columns:
-            filename = str(Path(krndir, song_metadata.loc[nlbid,'filename']))
+            filename = song_metadata.loc[nlbid,'filename']
         else:
-            filename = str(Path(krndir,nlbid+'.krn'))
+            filename = nlbid+'.krn'
+
+        if missing:
+            jsonfilename = filename.replace('.krn', '.json')
+            if os.path.isfile(os.path.join(outputpath, jsonfilename)):
+                print (f"{jsonfilename} exists. Skipping.")
+                continue
 
         try:
-            s = parseMelody(filename)
+            s = parseMelody(os.path.join(krndir, filename))
         except ParseError:
             print(nlbid, "does not exist")
             continue
@@ -1293,6 +1364,10 @@ def getSequences(
             print("-"*60)
             traceback.print_exc(file=sys.stdout)
             print("-"*60)
+            continue
+
+        if len(s.flat.notes) < 2:
+            print(f"{nlbid}: Melody too short ({len(s.flat.notes)} notes)")
             continue
 
         sd = m21TOscaledegrees(s)
@@ -1510,7 +1585,7 @@ def getANNBackgroundCorpusIndices(fsinst_song_metadata):
     # now bg_corpus contains all songs unrelated to mtc-ann's tune families
     return bg_corpus.index
 
-def ann2seqs(startat=None, only=None):
+def ann2seqs(startat=None, only=None, missing=False, stopat=None):
     ann_tf_labels = pd.read_csv(
         str(Path(mtcannroot,'metadata/MTC-ANN-tune-family-labels.csv')),
         na_filter=False,
@@ -1570,7 +1645,9 @@ def ann2seqs(startat=None, only=None):
         textFeatureFile=str(mtcanntextfeatspath),
         fieldmap = {'tunefamily':'TuneFamily', 'tunefamily_full' : 'TuneFamily'},
         startat=startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
@@ -1580,7 +1657,7 @@ def ann2seqs(startat=None, only=None):
 #        yield(seq)
 
 #if noann, remove all songs related to MTC-ANN, and remove all songs without tune family label
-def fsinst2seqs(startat=None, only=None):
+def fsinst2seqs(startat=None, only=None, missing=False, stopat=None):
     fsinst_song_metadata = pd.read_csv(
         str(Path(mtcfsroot,'metadata/MTC-FS-INST-2.0.csv')),
         na_filter=False,
@@ -1647,11 +1724,13 @@ def fsinst2seqs(startat=None, only=None):
         textFeatureFile=str(mtcfsinsttextfeatspath),
         fieldmap = {'tunefamily':'tunefamily_id', 'tunefamily_full' : 'tunefamily'},
         startat=startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
-def essen2seqs(startat=None, only=None):
+def essen2seqs(startat=None, only=None, missing=False, stopat=None):
 
     essen_song_metadata = pd.read_csv(
         str(essenmetadatapath),
@@ -1670,11 +1749,13 @@ def essen2seqs(startat=None, only=None):
         source_metadata=None,
         fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
         startat = startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
-def chorale2seqs(startat=None, only=None):
+def chorale2seqs(startat=None, only=None, missing=False, stopat=None):
 
     chorale_song_metadata = pd.read_csv(
         str(choralemetadatapath),
@@ -1693,11 +1774,13 @@ def chorale2seqs(startat=None, only=None):
         source_metadata=None,
         fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
         startat = startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
-def thesession2seqs(startat=None, only=None):
+def thesession2seqs(startat=None, only=None, missing=False, stopat=None):
 
     thesession_song_metadata = pd.read_csv(
         str(thesessionmeatadatapath),
@@ -1717,11 +1800,13 @@ def thesession2seqs(startat=None, only=None):
         source_metadata=None,
         fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
         startat = startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
-def cre2seqs(startat=None, only=None):
+def cre2seqs(startat=None, only=None, missing=False, stopat=None):
 
     cre_song_metadata = pd.read_csv(
         str(cremetadatapath),
@@ -1741,11 +1826,13 @@ def cre2seqs(startat=None, only=None):
         source_metadata=None,
         fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
         startat = startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
-def rism2seqs(startat=None, only=None):
+def rism2seqs(startat=None, only=None, missing=False, stopat=None):
 
     rism_song_metadata = pd.read_csv(
         rismmetadatapath,
@@ -1767,11 +1854,13 @@ def rism2seqs(startat=None, only=None):
         source_metadata=None,
         fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
         startat=startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
-def eyck2seqs(startat=None, only=None):
+def eyck2seqs(startat=None, only=None, missing=False, stopat=None):
     eyck_song_metadata = pd.read_csv(
         str(Path(eyckroot,'metadata.csv')),
         na_filter=False,
@@ -1818,7 +1907,9 @@ def eyck2seqs(startat=None, only=None):
         source_metadata=eyck_source_metadata,
         fieldmap = {'tunefamily':'tunefamily_id', 'tunefamily_full' : 'tunefamily'},
         startat=startat,
-        only=only
+        only=only,
+        missing=missing,
+        stopat=stopat,
     ):
         yield(seq)
 
@@ -1832,35 +1923,35 @@ def main():
 
     if args.gen_mtcann:
         with open(f'mtcann_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-            for seq in ann2seqs(startat=args.startat, only=args.only):
+            for seq in ann2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_mtcfsinst:
         with open(f'mtcfsinst_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-            for seq in fsinst2seqs(startat=args.startat, only=args.only):
+            for seq in fsinst2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
                 outfile.write(json.dumps(seq)+'\n')
             
     if args.gen_essen:
         #with open(f'essen_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-        for seq in essen2seqs(startat=args.startat, only=args.only):
-            with open(os.path.join('/Users/krane108/data/MELFeatures/essen/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
+        for seq in essen2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+            with open(os.path.join(outputpath, f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_chorales:
         with open(f'chorale_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-            for seq in chorale2seqs(startat=args.startat, only=args.only):
+            for seq in chorale2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_thesession:
         #with open(f'thesession_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-        for seq in thesession2seqs(startat=args.startat, only=args.only):
-            with open(os.path.join('/Users/krane108/data/MELFeatures/thesession/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
+        for seq in thesession2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+            with open(os.path.join(outputpath, f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_cre:
         #with open(f'cre_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-        for seq in cre2seqs(startat=args.startat, only=args.only):
-            with open(os.path.join('/Users/krane108/data/MELFeatures/cre/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
+        for seq in cre2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+            with open(os.path.join(outputpath, f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_rism:
@@ -1872,16 +1963,16 @@ def main():
             encoding='utf8'
         )
         #with open(f'rism_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-        for seq in rism2seqs(startat=args.startat, only=args.only):
-            outfilename = Path(rismroot, 'mtcjson', rism_song_metadata.loc[seq['id'],'filename'].replace('.krn','.json')) #.json
+        for seq in rism2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+            outfilename = Path(outputpath, rism_song_metadata.loc[seq['id'],'filename'].replace('.krn','.json')) #.json
             outfilename.parent.mkdir(parents=True, exist_ok=True)
             with open(outfilename, 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_eyck:
         #with open(f'eyck_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-        for seq in eyck2seqs(startat=args.startat, only=args.only):
-            with open(os.path.join('/Users/krane108/data/MELFeatures/eyck/mtcjson', f'{seq["id"]}.json'), 'w') as outfile:
+        for seq in eyck2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+            with open(os.path.join(outputpath, f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
 if __name__== "__main__":
