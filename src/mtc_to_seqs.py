@@ -12,6 +12,7 @@ from pathlib import Path
 from itertools import zip_longest
 from math import gcd
 import subprocess
+from subprocess import TimeoutExpired
 import sys, traceback
 import tempfile
 
@@ -590,6 +591,13 @@ class MelodyTooShorError(Exception):
     def __str__(self):
         return repr(self.message)
 
+#onsets2ima takes too long
+class IMATimeoutError(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        return repr(self.message)
+
 # add left padding to partial measure after repeat bar
 def padSplittedBars(s):
     partIds = [part.id for part in s.parts] 
@@ -1115,9 +1123,17 @@ def getIMA(s, onsets):
     """returns IMA and IMASPECT weights. Commandline onsets2ima must be installed."""
     s = s.stripTies()
 
-    with subprocess.Popen(["onsets2ima","-onsets"] + [str(o) for o in onsets], stdout=subprocess.PIPE) as proc:
-        output = proc.stdout.read().decode('ascii')
-    
+    # with subprocess.Popen(["onsets2ima","-onsets"] + [str(o) for o in onsets], stdout=subprocess.PIPE) as proc:
+    #     output = proc.stdout.read().decode('ascii')
+
+    proc = subprocess.Popen(["onsets2ima","-onsets"] + [str(o) for o in onsets], stdout=subprocess.PIPE)
+    try:
+        outs, errs = proc.communicate(timeout=5)
+    except TimeoutExpired:
+        proc.kill()
+        raise IMATimeoutError
+    output = outs.decode('ascii')
+
     ima_str = output.split('\n')[0].strip()
     ima_spect_str = output.split('\n')[1].strip()
 
@@ -1370,87 +1386,94 @@ def getSequences(
             print(f"{nlbid}: Melody too short ({len(s.flat.notes)} notes)")
             continue
 
-        sd = m21TOscaledegrees(s)
-        sdspec = m21TOscaleSpecifiers(s)
-        diatonicPitches = m21TOdiatonicPitches(s)
-        diatonicinterval = toDiatonicIntervals(s)
-        chromaticinterval = toChromaticIntervals(s)
-        pitch = m21TOPitches(s)
-        pitch40_hewlett = getPitch40_Hewlett(s)
-        pitch40_sapp = getPitch40_Sapp(s)
-        octave = getOctave(s)
-        midipitch = m21TOMidiPitch(s)
-        pitchproximity = getPitchProximity(chromaticinterval)
-        pitchreversal = getPitchReversal(chromaticinterval)
-        nextisrest = m21TONextIsRest(s)
-        restduration_frac = m21TORestDuration_frac(s)
-        tonic, mode = m21TOKey(s)
-        contour3 = midipitch2contour3(midipitch)
-        contour5 = midipitch2contour5(midipitch, thresh=3)
-        duration = m21TODuration(s)
-        duration_fullname = m21TODuration_fullname(s)
-        duration_frac = m21TODuration_frac(s)
-        durationcontour = getDurationcontour(duration_frac)
-        onsettick = getOnsetTick(s)
-        ima, ima_spect = getIMA(s, onsettick)
-        ic = getIMAcontour(ima)
-        phrase_ix, phrasepos = getPhraseInfo(s)
-        phrase_end = getPhraseEnd(phrasepos)
-        ioi_frac = getIOI_frac(duration_frac, restduration_frac)
-        ioi = getIOI(ioi_frac)
-        ior_frac = getIOR_frac(ioi_frac)
-        ior = getIOR(ior_frac)
-        songpos = getSongPos(onsettick)
-        gpr2a_Frankland = getFranklandGPR2a(restduration_frac)
-        gpr2b_Frankland = getFranklandGPR2b(duration, restduration_frac) #or use IOI and no rest check!!!
-        gpr3a_Frankland = getFranklandGPR3a(midipitch)
-        gpr3d_Frankland = getFranklandGPR3d(ioi)
-        gpr_Frankland_sum = [sum(filter(None, x)) for x in zip(gpr2a_Frankland, gpr2b_Frankland, gpr3a_Frankland, gpr3d_Frankland)]
-        lbdm_rpitch = getDegreeChangeLBDMpitch(chromaticinterval)
-        lbdm_spitch = getBoundaryStrengthPitch(lbdm_rpitch, chromaticinterval)
-        lbdm_rioi = getDegreeChangeLBDMioi(ioi)
-        lbdm_sioi = getBoundaryStrengthIOI(lbdm_rioi, ioi)
-        lbdm_rrest = getDegreeChangeLBDMrest(restduration_frac)
-        lbdm_srest = getBoundaryStrengthRest(lbdm_rrest, restduration_frac)
-        lbdm_boundarystrength = getLocalBoundaryStrength(lbdm_spitch, lbdm_sioi, lbdm_srest)
-        sorting_year = ''
-        #MTC:
-        if song_metadata.loc[nlbid,'source_id']:
-            sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
-        #RISM
-        if 'sorting_year' in song_metadata:
-            sorting_year = song_metadata.loc[nlbid,'sorting_year']
-        if pd.isna(sorting_year):
-            sorting_year = "-1"
-        if sorting_year == '':
-            sorting_year = "-1" #UGLY
-        sorting_year = int(sorting_year)
-        if 'ann_bgcorpus' in song_metadata.columns:
-            ann_bgcorpus = bool(song_metadata.loc[nlbid,'ann_bgcorpus'])
-        else:
-            ann_bgcorpus = None
-        if 'origin' in song_metadata.columns:
-            origin = song_metadata.loc[nlbid,'origin']
-        else:
-            origin = ''
         try:
-            #pass
-            timesignature = m21TOTimeSignature(s)
-            beat_str, beat_fraction_str = m21TOBeat_str(s)
-            beat_float = m21TOBeat_float(s)
-            mc = m21TOmetriccontour(s)
-            beatstrength = m21TObeatstrength(s)
-            beatinsong, beatinphrase, beatfraction = m21TOBeatInSongANDPhrase(s, phrasepos)
-            beatinphrase_end = getBeatinphrase_end(beatinphrase, phrase_ix, beat_float)
-        except NoMeterError:
-            print(nlbid, "has no time signature")
-            timesignature = [None]*len(sd)
-            beat_str, beat_fraction_str = [None]*len(sd) , [None]*len(sd)
-            beat_float = [None]*len(sd)
-            mc = [None]*len(sd)
-            beatstrength = [None]*len(sd)
-            beatinsong, beatinphrase, beatfraction = [None]*len(sd), [None]*len(sd), [None]*len(sd)
-            beatinphrase_end = [None]*len(sd)        
+
+            sd = m21TOscaledegrees(s)
+            sdspec = m21TOscaleSpecifiers(s)
+            diatonicPitches = m21TOdiatonicPitches(s)
+            diatonicinterval = toDiatonicIntervals(s)
+            chromaticinterval = toChromaticIntervals(s)
+            pitch = m21TOPitches(s)
+            pitch40_hewlett = getPitch40_Hewlett(s)
+            pitch40_sapp = getPitch40_Sapp(s)
+            octave = getOctave(s)
+            midipitch = m21TOMidiPitch(s)
+            pitchproximity = getPitchProximity(chromaticinterval)
+            pitchreversal = getPitchReversal(chromaticinterval)
+            nextisrest = m21TONextIsRest(s)
+            restduration_frac = m21TORestDuration_frac(s)
+            tonic, mode = m21TOKey(s)
+            contour3 = midipitch2contour3(midipitch)
+            contour5 = midipitch2contour5(midipitch, thresh=3)
+            duration = m21TODuration(s)
+            duration_fullname = m21TODuration_fullname(s)
+            duration_frac = m21TODuration_frac(s)
+            durationcontour = getDurationcontour(duration_frac)
+            onsettick = getOnsetTick(s)
+            ima, ima_spect = getIMA(s, onsettick)
+            ic = getIMAcontour(ima)
+            phrase_ix, phrasepos = getPhraseInfo(s)
+            phrase_end = getPhraseEnd(phrasepos)
+            ioi_frac = getIOI_frac(duration_frac, restduration_frac)
+            ioi = getIOI(ioi_frac)
+            ior_frac = getIOR_frac(ioi_frac)
+            ior = getIOR(ior_frac)
+            songpos = getSongPos(onsettick)
+            gpr2a_Frankland = getFranklandGPR2a(restduration_frac)
+            gpr2b_Frankland = getFranklandGPR2b(duration, restduration_frac) #or use IOI and no rest check!!!
+            gpr3a_Frankland = getFranklandGPR3a(midipitch)
+            gpr3d_Frankland = getFranklandGPR3d(ioi)
+            gpr_Frankland_sum = [sum(filter(None, x)) for x in zip(gpr2a_Frankland, gpr2b_Frankland, gpr3a_Frankland, gpr3d_Frankland)]
+            lbdm_rpitch = getDegreeChangeLBDMpitch(chromaticinterval)
+            lbdm_spitch = getBoundaryStrengthPitch(lbdm_rpitch, chromaticinterval)
+            lbdm_rioi = getDegreeChangeLBDMioi(ioi)
+            lbdm_sioi = getBoundaryStrengthIOI(lbdm_rioi, ioi)
+            lbdm_rrest = getDegreeChangeLBDMrest(restduration_frac)
+            lbdm_srest = getBoundaryStrengthRest(lbdm_rrest, restduration_frac)
+            lbdm_boundarystrength = getLocalBoundaryStrength(lbdm_spitch, lbdm_sioi, lbdm_srest)
+            sorting_year = ''
+            #MTC:
+            if song_metadata.loc[nlbid,'source_id']:
+                sorting_year = source_metadata.loc[song_metadata.loc[nlbid,'source_id'],'sorting_year']
+            #RISM
+            if 'sorting_year' in song_metadata:
+                sorting_year = song_metadata.loc[nlbid,'sorting_year']
+            if pd.isna(sorting_year):
+                sorting_year = "-1"
+            if sorting_year == '':
+                sorting_year = "-1" #UGLY
+            sorting_year = int(sorting_year)
+            if 'ann_bgcorpus' in song_metadata.columns:
+                ann_bgcorpus = bool(song_metadata.loc[nlbid,'ann_bgcorpus'])
+            else:
+                ann_bgcorpus = None
+            if 'origin' in song_metadata.columns:
+                origin = song_metadata.loc[nlbid,'origin']
+            else:
+                origin = ''
+            try:
+                #pass
+                timesignature = m21TOTimeSignature(s)
+                beat_str, beat_fraction_str = m21TOBeat_str(s)
+                beat_float = m21TOBeat_float(s)
+                mc = m21TOmetriccontour(s)
+                beatstrength = m21TObeatstrength(s)
+                beatinsong, beatinphrase, beatfraction = m21TOBeatInSongANDPhrase(s, phrasepos)
+                beatinphrase_end = getBeatinphrase_end(beatinphrase, phrase_ix, beat_float)
+            except NoMeterError:
+                print(nlbid, "has no time signature")
+                timesignature = [None]*len(sd)
+                beat_str, beat_fraction_str = [None]*len(sd) , [None]*len(sd)
+                beat_float = [None]*len(sd)
+                mc = [None]*len(sd)
+                beatstrength = [None]*len(sd)
+                beatinsong, beatinphrase, beatfraction = [None]*len(sd), [None]*len(sd), [None]*len(sd)
+                beatinphrase_end = [None]*len(sd)        
+        except Exception as e:
+            print(f"Features extraction from {nlbid} failed.")
+            print(e)
+            continue
+
         seq = {
             'id':nlbid, 'tunefamily': str(song_metadata.loc[nlbid, fieldmap['tunefamily']]),
             'year' : sorting_year,
