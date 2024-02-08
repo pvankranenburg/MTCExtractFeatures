@@ -125,6 +125,21 @@ parser.add_argument(
     default='/Users/krane108/data/MELFeatures/thesession'
 )
 
+### KOLBERT
+parser.add_argument(
+    '-kolberg',
+    dest='gen_kolberg',
+    help='Generate sequences for the Kolberg Collection.',
+    default=False,
+    action='store_true'
+)
+parser.add_argument(
+    '-kolbergroot',
+    type=str,
+    help='path to Kolberg data. ${kolbergroot}/krn, ${kolbergroot}/kb_id2title.csv should exist',
+    default='/Users/krane108/data/MELFeatures/kolberg'
+)
+
 ### CRE
 parser.add_argument(
     '-cre',
@@ -217,6 +232,10 @@ thesessionroot = Path(args.thesessionroot)
 thesessionkrndir = Path(args.thesessionroot, 'krn_mono')
 thesessionmeatadatapath = Path(args.thesessionroot, 'ses_id2title.csv')
 
+kolbergroot = Path(args.kolbergroot)
+kolbergkrndir = Path(args.kolbergroot, 'krn')
+kolbergmeatadatapath = Path(args.kolbergroot, 'kb_id2title.csv')
+
 creroot = Path(args.creroot)
 crekrndir = Path(args.creroot, 'krn')
 cremetadatapath = Path(args.creroot, 'cre_id2title.csv')
@@ -248,6 +267,8 @@ if args.outputpath == '':
         outputpath = '.'
     if args.gen_thesession:
         outputpath = os.path.join(thesessionroot, 'mtcjson')
+    if args.gen_kolberg:
+        outputpath = os.path.join(kolbergroot, 'mtcjson')
     if args.gen_cre:
         outputpath = os.path.join(creroot, 'mtcjson')
     if args.gen_rism:
@@ -1829,6 +1850,32 @@ def thesession2seqs(startat=None, only=None, missing=False, stopat=None):
     ):
         yield(seq)
 
+def kolberg2seqs(startat=None, only=None, missing=False, stopat=None):
+
+    kolberg_song_metadata = pd.read_csv(
+        str(kolbergmeatadatapath),
+        sep=';',
+        na_filter=False,
+        index_col=0,
+        header=None,
+        encoding='utf8'
+    )
+    kolberg_song_metadata['tunefamily'] = ''
+    kolberg_song_metadata['type'] = ''
+    kolberg_song_metadata['source_id'] = ''
+
+    for seq in getSequences(
+        krndir=kolbergkrndir,
+        song_metadata=kolberg_song_metadata,
+        source_metadata=None,
+        fieldmap = {'tunefamily':'tunefamily', 'tunefamily_full' : 'tunefamily'},
+        startat = startat,
+        only=only,
+        missing=missing,
+        stopat=stopat,
+    ):
+        yield(seq)
+
 def cre2seqs(startat=None, only=None, missing=False, stopat=None):
 
     cre_song_metadata = pd.read_csv(
@@ -1968,6 +2015,12 @@ def main():
     if args.gen_thesession:
         #with open(f'thesession_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
         for seq in thesession2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+            with open(os.path.join(outputpath, f'{seq["id"]}.json'), 'w') as outfile:
+                outfile.write(json.dumps(seq)+'\n')
+
+    if args.gen_kolberg:
+        #with open(f'kolberg_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+        for seq in kolberg2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
             with open(os.path.join(outputpath, f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
 
