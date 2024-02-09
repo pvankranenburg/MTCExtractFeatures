@@ -125,7 +125,7 @@ parser.add_argument(
     default='/Users/krane108/data/MELFeatures/thesession'
 )
 
-### KOLBERT
+### KOLBERG
 parser.add_argument(
     '-kolberg',
     dest='gen_kolberg',
@@ -229,7 +229,7 @@ choralekrndir = Path(args.choraleroot, 'allkrn')
 choralemetadatapath = Path(args.choraleroot, 'metadata.csv')
 
 thesessionroot = Path(args.thesessionroot)
-thesessionkrndir = Path(args.thesessionroot, 'krn_mono')
+thesessionkrndir = Path(args.thesessionroot, 'krn_mono_withkey')
 thesessionmeatadatapath = Path(args.thesessionroot, 'ses_id2title.csv')
 
 kolbergroot = Path(args.kolbergroot)
@@ -237,7 +237,7 @@ kolbergkrndir = Path(args.kolbergroot, 'krn')
 kolbergmeatadatapath = Path(args.kolbergroot, 'kb_id2title.csv')
 
 creroot = Path(args.creroot)
-crekrndir = Path(args.creroot, 'krn')
+crekrndir = Path(args.creroot, 'krn_withkey')
 cremetadatapath = Path(args.creroot, 'cre_id2title.csv')
 
 rismroot = Path(args.rismroot)
@@ -683,9 +683,10 @@ def hasmeter(s):
     #no time signature at all
     if not s.getElementsByClass('TimeSignature'): return False
     #maybe it is an Essen song with Mixed meter.
-    mixedmetercomments = [c.comment for c in s.getElementsByClass('GlobalComment') if c.comment.startswith('Mixed meters:')]
-    if len(mixedmetercomments) > 0:
-        return False
+    #---> that has meter!
+    #mixedmetercomments = [c.comment for c in s.getElementsByClass('GlobalComment') if c.comment.startswith('Mixed meters:')]
+    #if len(mixedmetercomments) > 0:
+    #    return False
     return True
 
 def notes2metriccontour(n1, n2):
