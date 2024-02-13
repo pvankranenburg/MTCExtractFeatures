@@ -1578,6 +1578,8 @@ def getSequences(
             except CacheError:
                 pass
                 #print(nlbid, 'has no lyrics.')
+            except KeyError:
+                print(f"{nlbid}: No textfeatures present")
         
         if ann_bgcorpus is not None:
             seq['ann_bgcorpus'] = ann_bgcorpus
@@ -1998,8 +2000,9 @@ def main():
                 outfile.write(json.dumps(seq)+'\n')
 
     if args.gen_mtcfsinst:
-        with open(f'mtcfsinst_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
-            for seq in fsinst2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+        #with open(f'mtcfsinst_sequences{"_from"+args.startat if args.startat else ""}.jsonl', 'w') as outfile:
+        for seq in fsinst2seqs(startat=args.startat, only=args.only, missing=args.missing, stopat=args.stopat):
+            with open(os.path.join(outputpath, f'{seq["id"]}.json'), 'w') as outfile:
                 outfile.write(json.dumps(seq)+'\n')
             
     if args.gen_essen:
