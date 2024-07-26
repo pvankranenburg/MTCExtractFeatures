@@ -49,7 +49,7 @@ parser.add_argument(
     '-mtcroot',
     type=str,
     help='path to MTC to find metadata',
-    default='/Users/krane108/data/MTC/'
+    default='/Users/Krane108/data/MTC/'
 )
 parser.add_argument(
     '-mtcanntextfeatspath',
@@ -678,6 +678,16 @@ def pitch2diatonicPitch(n, t):
         tonicshift = 7
     return ( n.pitch.diatonicNoteNum - tonicshift )
 
+# Tonic in 0-octave has value 0
+def pitch2diatonicPitch12(n, t):
+    tonicshift = t.pitch.midi % 12
+    return ( n.pitch.midi - tonicshift )
+
+# Tonic in 0-octave has value 0
+def pitch2diatonicPitch40(n, t):
+    tonicshift = pitch2base40_sapp[t.pitch.name]
+    return ( pitch2base40_sapp[n.pitch.name] + 40*n.octave - tonicshift)
+
 # s : flat music21 stream without ties and without grace notes
 def hasmeter(s):
     #no time signature at all
@@ -727,6 +737,17 @@ def m21TOscaledegrees(s):
     return scaledegrees
 
 # s : flat music21 stream without ties and without grace notes
+def m21TOChromaticScaleDegree(s):
+    try:
+        tonic = getTonic(s)
+    except NoKeyError as e:
+        print("No Key in ", e)
+        return [None for x in s.notes]
+    miditonic = tonic.midi % 12
+    scaledegrees12 = [(n.pitch.midi - miditonic) % 12 + 1 for n in s.notes]
+    return scaledegrees12
+
+# s : flat music21 stream without ties and without grace notes
 # output: M: major, m: minor, P: perfect, A: augmented, d: diminished
 def m21TOscaleSpecifiers(s):
     try:
@@ -749,6 +770,29 @@ def m21TOdiatonicPitches(s):
         return [None for x in s.notes]
     scaledegrees = [pitch2diatonicPitch(x, tonic) for x in s.notes]
     return scaledegrees
+
+# s : flat music21 stream without ties and without grace notes
+# Tonic in 0-octave has value 0
+def m21TOdiatonicPitches12(s):
+    try:
+        tonic = getTonic(s)
+    except NoKeyError as e:
+        print("No Key in ", e)
+        return [None for x in s.notes]
+    scaledegrees = [pitch2diatonicPitch12(x, tonic) for x in s.notes]
+    return scaledegrees
+
+# s : flat music21 stream without ties and without grace notes
+# Tonic in 0-octave has value 0
+def m21TOdiatonicPitches40(s):
+    try:
+        tonic = getTonic(s)
+    except NoKeyError as e:
+        print("No Key in ", e)
+        return [None for x in s.notes]
+    scaledegrees = [pitch2diatonicPitch40(x, tonic) for x in s.notes]
+    return scaledegrees
+
 
 # s : flat music21 stream without ties and without grace notes
 def toDiatonicIntervals(s):
@@ -1409,10 +1453,9 @@ def getSequences(
             continue
 
         try:
-
-            sd = m21TOscaledegrees(s)
-            sdspec = m21TOscaleSpecifiers(s)
             diatonicPitches = m21TOdiatonicPitches(s)
+            diatonicPitches12 = m21TOdiatonicPitches12(s)
+            diatonicPitches40 = m21TOdiatonicPitches40(s)
             diatonicinterval = toDiatonicIntervals(s)
             chromaticinterval = toChromaticIntervals(s)
             pitch = m21TOPitches(s)
@@ -1420,6 +1463,9 @@ def getSequences(
             pitch40_sapp = getPitch40_Sapp(s)
             octave = getOctave(s)
             midipitch = m21TOMidiPitch(s)
+            sd = m21TOscaledegrees(s)
+            sdspec = m21TOscaleSpecifiers(s)
+            chr_sd = m21TOChromaticScaleDegree(s)
             pitchproximity = getPitchProximity(chromaticinterval)
             pitchreversal = getPitchReversal(chromaticinterval)
             nextisrest = m21TONextIsRest(s)
@@ -1504,50 +1550,53 @@ def getSequences(
             'freemeter' : not hasmeter(s),
             'origin' : origin,
             'features': {
-                'scaledegree': sd,
-                'scaledegreespecifier' : sdspec,
-                'tonic': tonic,
-                'mode': mode,
-                'metriccontour':mc,
-                'imaweight':ima,
-                'imaweight_spectral':ima_spect,
-                'pitch40_hewlett': pitch40_hewlett,
-                'pitch40_sapp': pitch40_sapp,
+                'pitch': pitch,
                 'octave': octave,
                 'midipitch': midipitch,
+                'contour3' : contour3,
+                'contour5' : contour5,
+                'pitch40_hewlett': pitch40_hewlett,
+                'pitch40_sapp': pitch40_sapp,
+                'tonic': tonic,
+                'mode': mode,
+                'scaledegree': sd,
+                'scaledegreespecifier' : sdspec,
+                'chromaticscaledegree' : chr_sd,
                 'diatonicpitch' : diatonicPitches,
+                'diatonicpitch12' : diatonicPitches12,
+                'diatonicpitch40' : diatonicPitches40,
                 'diatonicinterval': diatonicinterval,
                 'chromaticinterval': chromaticinterval,
                 'pitchproximity': pitchproximity,
                 'pitchreversal': pitchreversal,
-                'nextisrest': nextisrest,
-                'restduration_frac': restduration_frac,
+                'onsettick': onsettick,
                 'duration': duration,
                 'duration_frac': duration_frac,
                 'duration_fullname': duration_fullname,
                 'durationcontour': durationcontour,
-                'onsettick': onsettick,
-                'beatfraction': beatfraction,
-                'phrasepos': phrasepos,
-                'phrase_ix': phrase_ix,
-                'phrase_end': phrase_end,
-                'songpos': songpos,
-                'beatinsong': beatinsong,
-                'beatinphrase': beatinphrase,
-                'beatinphrase_end': beatinphrase_end,
                 'IOI_frac': ioi_frac,
                 'IOI': ioi,
                 'IOR_frac': ior_frac,
                 'IOR': ior,
-                'imacontour': ic,
-                'pitch': pitch,
-                'contour3' : contour3,
-                'contour5' : contour5,
-                'beatstrength': beatstrength,
+                'nextisrest': nextisrest,
+                'restduration_frac': restduration_frac,
+                'timesignature': timesignature,
                 'beat_str': beat_str,
                 'beat_fraction_str': beat_fraction_str,
                 'beat': beat_float,
-                'timesignature': timesignature,
+                'beatfraction': beatfraction,
+                'beatinsong': beatinsong,
+                'beatinphrase': beatinphrase,
+                'beatinphrase_end': beatinphrase_end,
+                'beatstrength': beatstrength,
+                'metriccontour':mc,
+                'imaweight':ima,
+                'imaweight_spectral':ima_spect,
+                'imacontour': ic,
+                'songpos': songpos,
+                'phrasepos': phrasepos,
+                'phrase_ix': phrase_ix,
+                'phrase_end': phrase_end,
                 'gpr2a_Frankland': gpr2a_Frankland,
                 'gpr2b_Frankland': gpr2b_Frankland,
                 'gpr3a_Frankland': gpr3a_Frankland,
